@@ -1,0 +1,136 @@
+export type Role = 'admin' | 'user'
+
+export interface UserProfile {
+  id: string
+  email: string
+  role: Role
+  created_at: string
+}
+
+// ── Tag Catalogs ──────────────────────────────────────────
+export interface TagItem {
+  id: string
+  name: string
+  created_at: string
+}
+
+export interface TagCatalogs {
+  industries: TagItem[]
+  regions: TagItem[]
+  stages: TagItem[]
+  types: TagItem[]
+  statuses: TagItem[]
+}
+
+// ── Companies ─────────────────────────────────────────────
+export interface Company {
+  id: string
+  name: string
+  description: string | null
+  industry_ids: string[]
+  region_ids: string[]
+  stage_id: string | null
+  type_id: string | null
+  status_id: string | null
+  created_by: string
+  updated_by: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export type CompanyInsert = Omit<Company, 'id' | 'created_at' | 'updated_at'>
+export type CompanyUpdate = Partial<Omit<Company, 'id' | 'created_at' | 'created_by'>> & { updated_by: string }
+
+// ── Contacts ──────────────────────────────────────────────
+export interface Contact {
+  id: string
+  name: string
+  role: string | null
+  employer: string | null
+  phone: string | null
+  email: string | null
+  expertise: string | null
+  company_id: string | null
+  industry_ids: string[]
+  region_ids: string[]
+  created_by: string
+  updated_by: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export type ContactInsert = Omit<Contact, 'id' | 'created_at' | 'updated_at'>
+export type ContactUpdate = Partial<Omit<Contact, 'id' | 'created_at' | 'created_by'>> & { updated_by: string }
+
+// ── Meetings ──────────────────────────────────────────────
+export interface Meeting {
+  id: string
+  title: string
+  date: string
+  notes: string | null
+  company_id: string
+  created_by: string
+  updated_by: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export type MeetingInsert = Omit<Meeting, 'id' | 'created_at' | 'updated_at'>
+export type MeetingUpdate = Partial<Omit<Meeting, 'id' | 'created_at' | 'created_by'>> & { updated_by: string }
+
+// ── Meeting Participants ───────────────────────────────────
+export interface MeetingParticipant {
+  id: string
+  meeting_id: string
+  contact_id: string
+  created_at: string
+}
+
+// ── Interaction Log ───────────────────────────────────────
+export interface InteractionLog {
+  id: string
+  contact_id: string
+  note: string
+  follow_up: boolean
+  meeting_id: string | null
+  created_by: string
+  created_at: string
+}
+
+export type InteractionLogInsert = Omit<InteractionLog, 'id' | 'created_at'>
+
+// ── Feedback ──────────────────────────────────────────────
+export interface Feedback {
+  id: string
+  description: string
+  created_by: string
+  created_at: string
+}
+
+// ── Rich / Joined Views ───────────────────────────────────
+export interface CompanyWithTags extends Company {
+  industries: TagItem[]
+  regions: TagItem[]
+  stage: TagItem | null
+  type: TagItem | null
+  status: TagItem | null
+}
+
+export interface ContactWithCompany extends Contact {
+  company: Pick<Company, 'id' | 'name'> | null
+}
+
+export interface MeetingWithCompany extends Meeting {
+  company: Pick<Company, 'id' | 'name'>
+  participants: ContactWithCompany[]
+}
+
+export interface ContactTimeline {
+  type: 'meeting' | 'log'
+  date: string
+  meeting?: MeetingWithCompany
+  log?: InteractionLog
+}

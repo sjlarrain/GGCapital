@@ -1,0 +1,34 @@
+import { notFound } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { getMeeting, getMeetingParticipants } from '@/lib/actions/meetings'
+import { getCompanies } from '@/lib/actions/companies'
+import { getContacts } from '@/lib/actions/contacts'
+import MeetingForm from '@/components/forms/MeetingForm'
+
+export default async function EditMeetingPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const [meeting, participants, companies, contacts] = await Promise.all([
+    getMeeting(id).catch(() => null),
+    getMeetingParticipants(id),
+    getCompanies(),
+    getContacts(),
+  ])
+
+  if (!meeting) notFound()
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">Edit Meeting</h1>
+      <MeetingForm
+        meeting={meeting}
+        companies={companies.map((c) => ({ id: c.id, name: c.name }))}
+        contacts={contacts.map((c) => ({ id: c.id, name: c.name, role: c.role }))}
+        userId={user!.id}
+        initialParticipantIds={participants.map((p) => p.contact_id)}
+      />
+    </div>
+  )
+}
