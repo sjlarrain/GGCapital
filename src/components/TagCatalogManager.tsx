@@ -7,7 +7,7 @@ import Button from './ui/Button'
 import Input from './ui/Input'
 import Alert from './ui/Alert'
 
-type CatalogKey = 'industries' | 'regions' | 'stages' | 'types' | 'statuses'
+type CatalogKey = 'industries' | 'regions' | 'stages' | 'types' | 'statuses' | 'meetingTypes'
 
 interface Props {
   catalog: CatalogKey

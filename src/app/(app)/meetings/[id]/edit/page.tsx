@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getMeeting, getMeetingParticipants } from '@/lib/actions/meetings'
 import { getCompanies } from '@/lib/actions/companies'
 import { getContacts } from '@/lib/actions/contacts'
+import { getTagCatalogs } from '@/lib/actions/tags'
 import MeetingForm from '@/components/forms/MeetingForm'
 
 export default async function EditMeetingPage({ params }: { params: Promise<{ id: string }> }) {
@@ -10,11 +11,12 @@ export default async function EditMeetingPage({ params }: { params: Promise<{ id
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [meeting, participants, companies, contacts] = await Promise.all([
+  const [meeting, participants, companies, contacts, tags] = await Promise.all([
     getMeeting(id).catch(() => null),
     getMeetingParticipants(id),
     getCompanies(),
     getContacts(),
+    getTagCatalogs(),
   ])
 
   if (!meeting) notFound()
@@ -26,7 +28,9 @@ export default async function EditMeetingPage({ params }: { params: Promise<{ id
         meeting={meeting}
         companies={companies.map((c) => ({ id: c.id, name: c.name }))}
         contacts={contacts.map((c) => ({ id: c.id, name: c.name, role: c.role }))}
+        meetingTypes={tags.meetingTypes}
         userId={user!.id}
+        defaultTypeId={meeting.type_id ?? undefined}
         initialParticipantIds={participants.map((p) => p.contact_id)}
       />
     </div>

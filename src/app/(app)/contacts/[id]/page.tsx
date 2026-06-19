@@ -83,6 +83,16 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
             </dd></>
           )}
         </dl>
+        {(contact.investment_focus ?? []).length > 0 && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="text-sm text-gray-500 mb-2">Investment Focus</p>
+            <div className="flex flex-wrap gap-1">
+              {(contact.investment_focus as string[]).map((f: string) => (
+                <Badge key={f} variant="blue">{f}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div>

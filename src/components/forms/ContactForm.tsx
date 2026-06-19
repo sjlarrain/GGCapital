@@ -27,6 +27,7 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
   const [email, setEmail] = useState(contact?.email ?? '')
   const [expertise, setExpertise] = useState(contact?.expertise ?? '')
   const [companyId, setCompanyId] = useState(contact?.company_id ?? defaultCompanyId ?? '')
+  const [investmentFocus, setInvestmentFocus] = useState<string[]>(contact?.investment_focus ?? [])
   const [industryIds, setIndustryIds] = useState<string[]>(contact?.industry_ids ?? [])
   const [regionIds, setRegionIds] = useState<string[]>(contact?.region_ids ?? [])
   const [tagState, setTagState] = useState(tags)
@@ -54,6 +55,7 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
     const c = await createCompany({
       name: newCompanyName.trim(),
       description: null,
+      source: null,
       industry_ids: [],
       region_ids: [],
       stage_id: null,
@@ -86,6 +88,7 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
         company_id: companyId || null,
         industry_ids: industryIds,
         region_ids: regionIds,
+        investment_focus: investmentFocus,
         updated_by: userId,
       }
 
@@ -158,6 +161,28 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
             <Button type="button" variant="ghost" size="sm" onClick={() => setCreatingCompany(false)}>Cancel</Button>
           </div>
         )}
+      </div>
+
+      {/* Investment Focus — fixed list, multi-select */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Investment Focus</label>
+        <div className="flex flex-wrap gap-3">
+          {['Accelerator', 'Builder', 'Funds', 'PE', 'Startups'].map((option) => (
+            <label key={option} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="rounded"
+                checked={investmentFocus.includes(option)}
+                onChange={(e) =>
+                  setInvestmentFocus((prev) =>
+                    e.target.checked ? [...prev, option] : prev.filter((v) => v !== option)
+                  )
+                }
+              />
+              {option}
+            </label>
+          ))}
+        </div>
       </div>
 
       <div className="relative">

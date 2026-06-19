@@ -14,8 +14,10 @@ interface MeetingFormProps {
   meeting?: Meeting
   companies: { id: string; name: string }[]
   contacts: { id: string; name: string; role: string | null }[]
+  meetingTypes: { id: string; name: string }[]
   userId: string
   defaultCompanyId?: string
+  defaultTypeId?: string
   initialParticipantIds?: string[]
 }
 
@@ -23,8 +25,10 @@ export default function MeetingForm({
   meeting,
   companies,
   contacts,
+  meetingTypes,
   userId,
   defaultCompanyId,
+  defaultTypeId,
   initialParticipantIds = [],
 }: MeetingFormProps) {
   const router = useRouter()
@@ -32,6 +36,7 @@ export default function MeetingForm({
   const [date, setDate] = useState(meeting?.date ?? new Date().toISOString().slice(0, 10))
   const [notes, setNotes] = useState(meeting?.notes ?? '')
   const [companyId, setCompanyId] = useState(meeting?.company_id ?? defaultCompanyId ?? '')
+  const [typeId, setTypeId] = useState(meeting?.type_id ?? defaultTypeId ?? '')
   const [participantIds, setParticipantIds] = useState<string[]>(initialParticipantIds)
   const [companyList, setCompanyList] = useState(companies)
   const [contactList, setContactList] = useState(contacts)
@@ -54,6 +59,7 @@ export default function MeetingForm({
     const c = await createCompany({
       name: newCompanyName.trim(),
       description: null,
+      source: null,
       industry_ids: [],
       region_ids: [],
       stage_id: null,
@@ -81,6 +87,7 @@ export default function MeetingForm({
       company_id: companyId || null,
       industry_ids: [],
       region_ids: [],
+      investment_focus: [],
       created_by: userId,
       updated_by: userId,
       deleted_at: null,
@@ -93,7 +100,10 @@ export default function MeetingForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!companyId) { setError('A company is required for every meeting.'); return }
+    if (!companyId && participantIds.length === 0) {
+      setError('A meeting must have at least a company or a participant.')
+      return
+    }
     if (!title.trim()) { setError('Meeting title is required.'); return }
     setSaving(true)
     setError('')
@@ -104,7 +114,8 @@ export default function MeetingForm({
           title: title.trim(),
           date,
           notes: notes.trim() || null,
-          company_id: companyId,
+          company_id: companyId || null,
+          type_id: typeId || null,
           updated_by: userId,
         })
         meetingId = meeting.id
@@ -113,7 +124,8 @@ export default function MeetingForm({
           title: title.trim(),
           date,
           notes: notes.trim() || null,
-          company_id: companyId,
+          company_id: companyId || null,
+          type_id: typeId || null,
           created_by: userId,
           updated_by: userId,
           deleted_at: null,
@@ -136,19 +148,16 @@ export default function MeetingForm({
       <Input id="title" label="Meeting title *" value={title} onChange={(e) => setTitle(e.target.value)} required />
       <Input id="date" label="Date *" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
 
-      {/* Company — mandatory */}
+      {/* Company — optional */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Company <span className="text-red-500">*</span>
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
         <div className="flex gap-2">
           <select
             className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             value={companyId}
             onChange={(e) => setCompanyId(e.target.value)}
-            required
           >
-            <option value="">Select company…</option>
+            <option value="">No company</option>
             {companyList.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -164,6 +173,21 @@ export default function MeetingForm({
             <Button type="button" variant="ghost" size="sm" onClick={() => setCreatingCompany(false)}>Cancel</Button>
           </div>
         )}
+      </div>
+
+      {/* Meeting Type — optional */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+        <select
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          value={typeId}
+          onChange={(e) => setTypeId(e.target.value)}
+        >
+          <option value="">—</option>
+          {meetingTypes.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Participants */}

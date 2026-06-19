@@ -70,6 +70,10 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             <span>{tagName(company.status_id, tags.statuses) ?? '—'}</span>
           </div>
           <div>
+            <span className="text-gray-500">Source: </span>
+            <span>{company.source ?? '—'}</span>
+          </div>
+          <div>
             <span className="text-gray-500">Created: </span>
             <span>{formatDate(company.created_at)}</span>
           </div>

@@ -7,7 +7,7 @@ export async function getMeetings(includeDeleted = false) {
   const supabase = await createClient()
   let query = supabase
     .from('meetings')
-    .select('*, company:companies(id, name)')
+    .select('*, company:companies(id, name), meetingType:tag_meeting_types(id, name)')
     .order('date', { ascending: false })
 
   if (!includeDeleted) query = query.is('deleted_at', null)
@@ -20,7 +20,7 @@ export async function getMeeting(id: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('meetings')
-    .select('*, company:companies(id, name)')
+    .select('*, company:companies(id, name), meetingType:tag_meeting_types(id, name)')
     .eq('id', id)
     .single()
   if (error) throw error

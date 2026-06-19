@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getCompanies } from '@/lib/actions/companies'
 import { getContacts } from '@/lib/actions/contacts'
+import { getTagCatalogs } from '@/lib/actions/tags'
 import MeetingForm from '@/components/forms/MeetingForm'
 
 export default async function NewMeetingPage({
@@ -12,9 +13,10 @@ export default async function NewMeetingPage({
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [companies, contacts] = await Promise.all([
+  const [companies, contacts, tags] = await Promise.all([
     getCompanies(),
     getContacts(),
+    getTagCatalogs(),
   ])
 
   return (
@@ -23,6 +25,7 @@ export default async function NewMeetingPage({
       <MeetingForm
         companies={companies.map((c) => ({ id: c.id, name: c.name }))}
         contacts={contacts.map((c) => ({ id: c.id, name: c.name, role: c.role }))}
+        meetingTypes={tags.meetingTypes}
         userId={user!.id}
         defaultCompanyId={defaultCompanyId}
       />

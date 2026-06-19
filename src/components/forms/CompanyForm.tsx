@@ -20,6 +20,7 @@ export default function CompanyForm({ company, tags, userId }: CompanyFormProps)
   const router = useRouter()
   const [name, setName] = useState(company?.name ?? '')
   const [description, setDescription] = useState(company?.description ?? '')
+  const [source, setSource] = useState<'' | 'Direct' | 'Fund'>(company?.source ?? '')
   const [industryIds, setIndustryIds] = useState<string[]>(company?.industry_ids ?? [])
   const [regionIds, setRegionIds] = useState<string[]>(company?.region_ids ?? [])
   const [stageId, setStageId] = useState<string[]>(company?.stage_id ? [company.stage_id] : [])
@@ -52,6 +53,7 @@ export default function CompanyForm({ company, tags, userId }: CompanyFormProps)
       const payload = {
         name: name.trim(),
         description: description.trim() || null,
+        source: source || null,
         industry_ids: industryIds,
         region_ids: regionIds,
         stage_id: stageId[0] ?? null,
@@ -114,6 +116,19 @@ export default function CompanyForm({ company, tags, userId }: CompanyFormProps)
         onChange={(e) => setDescription(e.target.value)}
         rows={3}
       />
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
+        <select
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          value={source}
+          onChange={(e) => setSource(e.target.value as '' | 'Direct' | 'Fund')}
+        >
+          <option value="">—</option>
+          <option value="Direct">Direct</option>
+          <option value="Fund">Fund</option>
+        </select>
+      </div>
 
       <div className="relative">
         <TagPicker

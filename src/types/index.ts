@@ -20,6 +20,7 @@ export interface TagCatalogs {
   stages: TagItem[]
   types: TagItem[]
   statuses: TagItem[]
+  meetingTypes: TagItem[]
 }
 
 // ── Companies ─────────────────────────────────────────────
@@ -27,6 +28,7 @@ export interface Company {
   id: string
   name: string
   description: string | null
+  source: 'Direct' | 'Fund' | null
   industry_ids: string[]
   region_ids: string[]
   stage_id: string | null
@@ -54,6 +56,7 @@ export interface Contact {
   company_id: string | null
   industry_ids: string[]
   region_ids: string[]
+  investment_focus: string[]
   created_by: string
   updated_by: string
   created_at: string
@@ -70,7 +73,8 @@ export interface Meeting {
   title: string
   date: string
   notes: string | null
-  company_id: string
+  company_id: string | null
+  type_id: string | null
   created_by: string
   updated_by: string
   created_at: string
@@ -124,7 +128,8 @@ export interface ContactWithCompany extends Contact {
 }
 
 export interface MeetingWithCompany extends Meeting {
-  company: Pick<Company, 'id' | 'name'>
+  company: Pick<Company, 'id' | 'name'> | null
+  meetingType: Pick<TagItem, 'id' | 'name'> | null
   participants: ContactWithCompany[]
 }
 

@@ -18,6 +18,7 @@ export default async function TagsPage() {
         <TagCatalogManager catalog="stages" label="Stages" items={tags.stages} />
         <TagCatalogManager catalog="types" label="Types" items={tags.types} />
         <TagCatalogManager catalog="statuses" label="Statuses" items={tags.statuses} />
+        <TagCatalogManager catalog="meetingTypes" label="Meeting Types" items={tags.meetingTypes} />
       </div>
     </div>
   )

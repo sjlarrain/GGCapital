@@ -52,10 +52,16 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
           </div>
           <div>
             <span className="text-gray-500">Company: </span>
-            <Link href={`/companies/${(meeting.company as { id: string; name: string }).id}`} className="text-blue-600 hover:underline">
-              {(meeting.company as { id: string; name: string }).name}
-            </Link>
+            {meeting.company
+              ? <Link href={`/companies/${(meeting.company as { id: string; name: string }).id}`} className="text-blue-600 hover:underline">{(meeting.company as { id: string; name: string }).name}</Link>
+              : <span className="text-gray-400">—</span>}
           </div>
+          {(meeting as { meetingType?: { name: string } | null }).meetingType && (
+            <div>
+              <span className="text-gray-500">Type: </span>
+              <span className="font-medium">{(meeting as { meetingType: { name: string } }).meetingType.name}</span>
+            </div>
+          )}
         </div>
         {meeting.notes && (
           <div className="pt-2 border-t border-gray-100">
