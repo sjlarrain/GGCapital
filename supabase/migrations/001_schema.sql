@@ -193,14 +193,16 @@ create trigger meetings_updated_at before update on meetings
 -- AUTO-CREATE USER PROFILE ON SIGNUP
 -- ============================================================
 
-create or replace function handle_new_user()
-returns trigger language plpgsql security definer as $$
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer
+set search_path = public
+as $$
 begin
-  insert into user_profiles (id, email, role)
+  insert into public.user_profiles (id, email, role)
   values (
     new.id,
     new.email,
-    case when not exists (select 1 from user_profiles) then 'admin' else 'user' end
+    case when not exists (select 1 from public.user_profiles) then 'admin' else 'user' end
   );
   return new;
 end;
