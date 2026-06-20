@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
-import Button from './ui/Button'
 import { createInteractionLog } from '@/lib/actions/interactions'
 import type { InteractionLog } from '@/types'
 
@@ -44,64 +43,77 @@ export default function ContactTimeline({ contactId, userId, entries }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div>
       {/* Quick note entry */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
-        <h3 className="text-sm font-semibold text-gray-700">Add note</h3>
-        <textarea
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-          rows={2}
-          placeholder="Quick note…"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+      <div className="box mb-4">
+        <p className="is-size-6 has-text-weight-semibold mb-3">Add note</p>
+        <div className="field">
+          <div className="control">
+            <textarea
+              className="textarea is-small"
+              rows={2}
+              placeholder="Quick note…"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+          <label className="checkbox is-size-7">
             <input
               type="checkbox"
               checked={followUp}
               onChange={(e) => setFollowUp(e.target.checked)}
-              className="rounded"
+              className="mr-2"
             />
             Flag for follow-up
           </label>
-          <Button size="sm" onClick={handleAddNote} disabled={saving || !note.trim()}>
+          <button
+            className="button is-primary is-small"
+            onClick={handleAddNote}
+            disabled={saving || !note.trim()}
+          >
             {saving ? 'Saving…' : 'Add note'}
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* Timeline */}
-      <div className="space-y-2">
+      <div>
         {entries.length === 0 && (
-          <p className="text-sm text-gray-400 py-4 text-center">No activity yet.</p>
+          <p className="has-text-grey has-text-centered py-5 is-size-7">No activity yet.</p>
         )}
         {entries.map((entry, i) => (
-          <div key={i} className="flex gap-3">
-            <div className="flex flex-col items-center">
-              <div className={`w-2.5 h-2.5 rounded-full mt-1.5 ${entry.type === 'meeting' ? 'bg-blue-500' : 'bg-gray-400'}`} />
-              {i < entries.length - 1 && <div className="w-px flex-1 bg-gray-200 my-1" />}
+          <div key={i} style={{ display: 'flex', gap: 12, marginBottom: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20, flexShrink: 0 }}>
+              <div
+                className="gg-timeline-dot"
+                style={{ background: entry.type === 'meeting' ? '#3273dc' : '#a0aec0' }}
+              />
+              {i < entries.length - 1 && <div className="gg-timeline-line" />}
             </div>
-            <div className="flex-1 pb-3">
-              <div className="flex items-start justify-between">
-                <div>
+            <div style={{ flex: 1, paddingBottom: 12 }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', width: '100%' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   {entry.type === 'meeting' ? (
-                    <p className="text-sm">
-                      <span className="font-medium text-blue-700">Meeting: </span>
-                      <Link href={`/meetings/${entry.meetingId}`} className="text-blue-600 hover:underline">
+                    <p className="is-size-7">
+                      <span className="has-text-weight-semibold has-text-link">Meeting: </span>
+                      <Link href={`/meetings/${entry.meetingId}`} className="has-text-link">
                         {entry.meetingTitle}
                       </Link>
                     </p>
                   ) : (
                     <div>
-                      <p className="text-sm text-gray-800">{entry.log?.note}</p>
+                      <p className="is-size-7" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'break-word' }}>{entry.log?.note}</p>
                       {entry.log?.follow_up && (
-                        <span className="text-xs text-yellow-600 font-medium">🔔 Follow-up flagged</span>
+                        <span className="is-size-7 has-text-warning-dark">🔔 Follow-up flagged</span>
                       )}
                     </div>
                   )}
                 </div>
-                <span className="text-xs text-gray-400 shrink-0 ml-2">{formatDate(entry.date)}</span>
+                <span className="is-size-7 has-text-grey" style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  {formatDate(entry.date)}
+                </span>
               </div>
             </div>
           </div>

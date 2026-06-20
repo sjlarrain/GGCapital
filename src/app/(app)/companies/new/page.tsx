@@ -8,8 +8,8 @@ export default async function NewCompanyPage() {
   const tags = await getTagCatalogs()
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">New Company</h1>
+    <div className="gg-detail">
+      <h1 className="title is-3 mb-5">New Company</h1>
       <CompanyForm tags={tags} userId={user!.id} />
     </div>
   )

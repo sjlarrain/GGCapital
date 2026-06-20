@@ -3,8 +3,6 @@ import { useState } from 'react'
 import { createTag, updateTag, deleteTag } from '@/lib/actions/tags'
 import { findNearMatches } from '@/lib/utils'
 import type { TagItem } from '@/types'
-import Button from './ui/Button'
-import Input from './ui/Input'
 import Alert from './ui/Alert'
 
 type CatalogKey = 'industries' | 'regions' | 'stages' | 'types' | 'statuses' | 'meetingTypes'
@@ -58,24 +56,60 @@ export default function TagCatalogManager({ catalog, label, items: initial }: Pr
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
-      <h2 className="text-base font-semibold text-gray-800 mb-3">{label}</h2>
+    <div className="box">
+      <p className="is-size-6 has-text-weight-semibold mb-3">{label}</p>
 
-      <div className="space-y-1 mb-4 max-h-56 overflow-y-auto divide-y divide-gray-100">
-        {items.length === 0 && <p className="text-sm text-gray-400 py-2">No tags yet.</p>}
+      <div style={{ maxHeight: 220, overflowY: 'auto', marginBottom: '1rem' }}>
+        {items.length === 0 && (
+          <p className="is-size-7 has-text-grey py-2">No tags yet.</p>
+        )}
         {items.map((t) => (
-          <div key={t.id} className="flex items-center gap-2 py-1.5">
+          <div
+            key={t.id}
+            className="level is-mobile"
+            style={{ padding: '0.35rem 0', borderBottom: '1px solid #f5f5f5', margin: 0 }}
+          >
             {editingId === t.id ? (
               <>
-                <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="flex-1 text-sm" />
-                <Button size="sm" onClick={() => handleUpdate(t.id)}>Save</Button>
-                <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
+                <div className="level-left" style={{ flex: 1 }}>
+                  <div className="field mb-0" style={{ flex: 1 }}>
+                    <div className="control">
+                      <input
+                        className="input is-small"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="level-right">
+                  <div className="buttons ml-2">
+                    <button className="button is-primary is-small" onClick={() => handleUpdate(t.id)}>Save</button>
+                    <button className="button is-ghost is-small" onClick={() => setEditingId(null)}>Cancel</button>
+                  </div>
+                </div>
               </>
             ) : (
               <>
-                <span className="flex-1 text-sm">{t.name}</span>
-                <Button variant="ghost" size="sm" onClick={() => { setEditingId(t.id); setEditName(t.name) }}>Edit</Button>
-                <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => handleDelete(t.id)}>×</Button>
+                <div className="level-left">
+                  <span className="is-size-7">{t.name}</span>
+                </div>
+                <div className="level-right">
+                  <div className="buttons ml-2">
+                    <button
+                      className="button is-ghost is-small"
+                      onClick={() => { setEditingId(t.id); setEditName(t.name) }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="button is-ghost is-small has-text-danger"
+                      onClick={() => handleDelete(t.id)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
               </>
             )}
           </div>
@@ -83,21 +117,30 @@ export default function TagCatalogManager({ catalog, label, items: initial }: Pr
       </div>
 
       {nearMatches.length > 0 && (
-        <Alert type="warning" className="mb-2 text-xs">
-          Similar tags: {nearMatches.join(', ')}
+        <Alert type="warning" className="mb-2">
+          <span className="is-size-7">Similar tags: {nearMatches.join(', ')}</span>
         </Alert>
       )}
 
-      <div className="flex gap-2">
-        <Input
-          value={newName}
-          onChange={(e) => handleNewNameChange(e.target.value)}
-          placeholder="New tag name…"
-          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreate())}
-        />
-        <Button size="sm" onClick={handleCreate} disabled={loading || !newName.trim()}>
-          {loading ? '…' : 'Add'}
-        </Button>
+      <div className="field has-addons mb-0">
+        <div className="control is-expanded">
+          <input
+            className="input is-small"
+            value={newName}
+            onChange={(e) => handleNewNameChange(e.target.value)}
+            placeholder="New tag name…"
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreate())}
+          />
+        </div>
+        <div className="control">
+          <button
+            className="button is-primary is-small"
+            onClick={handleCreate}
+            disabled={loading || !newName.trim()}
+          >
+            {loading ? '…' : 'Add'}
+          </button>
+        </div>
       </div>
     </div>
   )

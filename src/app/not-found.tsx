@@ -2,11 +2,11 @@ import Link from 'next/link'
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-6xl font-bold text-gray-200">404</h1>
-        <p className="text-gray-600 mt-2">Page not found</p>
-        <Link href="/" className="mt-4 inline-block text-blue-600 hover:underline text-sm">
+    <div className="gg-login-page">
+      <div className="has-text-centered">
+        <p className="title is-1 has-text-grey-lighter">404</p>
+        <p className="subtitle is-6 has-text-grey">Page not found</p>
+        <Link href="/" className="button is-primary is-small mt-4">
           Go home
         </Link>
       </div>

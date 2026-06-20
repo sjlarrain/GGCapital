@@ -18,8 +18,8 @@ export default async function NewContactPage({
   ])
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">New Contact</h1>
+    <div className="gg-detail">
+      <h1 className="title is-3 mb-5">New Contact</h1>
       <ContactForm
         tags={tags}
         companies={companies.map((c) => ({ id: c.id, name: c.name }))}

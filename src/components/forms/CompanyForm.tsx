@@ -1,9 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Input from '@/components/ui/Input'
-import Textarea from '@/components/ui/Textarea'
-import Button from '@/components/ui/Button'
 import Alert from '@/components/ui/Alert'
 import TagPicker from '@/components/TagPicker'
 import { createCompany, updateCompany, checkCompanyDuplicate } from '@/lib/actions/companies'
@@ -14,9 +11,10 @@ interface CompanyFormProps {
   company?: Company
   tags: TagCatalogs
   userId: string
+  onSuccess?: (created?: { id: string; name: string }) => void
 }
 
-export default function CompanyForm({ company, tags, userId }: CompanyFormProps) {
+export default function CompanyForm({ company, tags, userId, onSuccess }: CompanyFormProps) {
   const router = useRouter()
   const [name, setName] = useState(company?.name ?? '')
   const [description, setDescription] = useState(company?.description ?? '')
@@ -65,10 +63,12 @@ export default function CompanyForm({ company, tags, userId }: CompanyFormProps)
 
       if (company) {
         await updateCompany(company.id, payload)
-        router.push(`/companies/${company.id}`)
+        if (onSuccess) onSuccess()
+        else router.push(`/companies/${company.id}`)
       } else {
         const created = await createCompany({ ...payload, created_by: userId, deleted_at: null })
-        router.push(`/companies/${created.id}`)
+        if (onSuccess) onSuccess({ id: created.id, name: created.name })
+        else router.push(`/companies/${created.id}`)
       }
     } catch (err) {
       setError(String(err))
@@ -84,108 +84,70 @@ export default function CompanyForm({ company, tags, userId }: CompanyFormProps)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 max-w-xl">
-      {error && <Alert type="error">{error}</Alert>}
+    <form onSubmit={handleSubmit}>
+      {error && <Alert type="error" className="mb-4">{error}</Alert>}
 
       {duplicates.length > 0 && !dupDismissed && (
-        <Alert type="warning" title="Possible duplicate">
-          Similar company already exists: {duplicates.map((d) => d.name).join(', ')}.
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="ml-2 underline"
-            onClick={() => setDupDismissed(true)}
-          >
+        <Alert type="warning" title="Possible duplicate" className="mb-4">
+          Similar company already exists: {duplicates.map((d) => d.name).join(', ')}.{' '}
+          <button type="button" className="button is-ghost is-small" onClick={() => setDupDismissed(true)}>
             Continue anyway
-          </Button>
+          </button>
         </Alert>
       )}
 
-      <Input
-        id="name"
-        label="Company name *"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-      />
-      <Textarea
-        id="description"
-        label="Description"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        rows={3}
-      />
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
-        <select
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-          value={source}
-          onChange={(e) => setSource(e.target.value as '' | 'Direct' | 'Fund')}
-        >
-          <option value="">—</option>
-          <option value="Direct">Direct</option>
-          <option value="Fund">Fund</option>
-        </select>
+      <div className="field">
+        <label className="label">Company name *</label>
+        <div className="control">
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+        </div>
       </div>
 
-      <div className="relative">
-        <TagPicker
-          label="Industries"
-          catalog={tagState.industries}
-          selected={industryIds}
-          onChange={setIndustryIds}
-          onCreateTag={makeTagCreator('industries')}
-        />
-      </div>
-      <div className="relative">
-        <TagPicker
-          label="Regions"
-          catalog={tagState.regions}
-          selected={regionIds}
-          onChange={setRegionIds}
-          onCreateTag={makeTagCreator('regions')}
-        />
-      </div>
-      <div className="relative">
-        <TagPicker
-          label="Type"
-          catalog={tagState.types}
-          selected={typeId}
-          onChange={setTypeId}
-          onCreateTag={makeTagCreator('types')}
-          multi={false}
-        />
-      </div>
-      <div className="relative">
-        <TagPicker
-          label="Stage"
-          catalog={tagState.stages}
-          selected={stageId}
-          onChange={setStageId}
-          onCreateTag={makeTagCreator('stages')}
-          multi={false}
-        />
-      </div>
-      <div className="relative">
-        <TagPicker
-          label="Status"
-          catalog={tagState.statuses}
-          selected={statusId}
-          onChange={setStatusId}
-          onCreateTag={makeTagCreator('statuses')}
-          multi={false}
-        />
+      <div className="field">
+        <label className="label">Description</label>
+        <div className="control">
+          <textarea className="textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
       </div>
 
-      <div className="flex gap-3 pt-2">
-        <Button type="submit" disabled={saving || (duplicates.length > 0 && !dupDismissed)}>
-          {saving ? 'Saving…' : company ? 'Update Company' : 'Create Company'}
-        </Button>
-        <Button type="button" variant="secondary" onClick={() => router.back()}>
-          Cancel
-        </Button>
+      <div className="field">
+        <label className="label">Source</label>
+        <div className="control">
+          <div className="select is-fullwidth">
+            <select value={source} onChange={(e) => setSource(e.target.value as '' | 'Direct' | 'Fund')}>
+              <option value="">—</option>
+              <option value="Direct">Direct</option>
+              <option value="Fund">Fund</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative">
+        <TagPicker label="Industries" catalog={tagState.industries} selected={industryIds} onChange={setIndustryIds} onCreateTag={makeTagCreator('industries')} />
+      </div>
+      <div className="relative">
+        <TagPicker label="Regions" catalog={tagState.regions} selected={regionIds} onChange={setRegionIds} onCreateTag={makeTagCreator('regions')} />
+      </div>
+      <div className="relative">
+        <TagPicker label="Type" catalog={tagState.types} selected={typeId} onChange={setTypeId} onCreateTag={makeTagCreator('types')} multi={false} />
+      </div>
+      <div className="relative">
+        <TagPicker label="Stage" catalog={tagState.stages} selected={stageId} onChange={setStageId} onCreateTag={makeTagCreator('stages')} multi={false} />
+      </div>
+      <div className="relative">
+        <TagPicker label="Status" catalog={tagState.statuses} selected={statusId} onChange={setStatusId} onCreateTag={makeTagCreator('statuses')} multi={false} />
+      </div>
+
+      <div className="field mt-5">
+        <div className="buttons">
+          <button type="submit" className="button is-primary" disabled={saving || (duplicates.length > 0 && !dupDismissed)}>
+            {saving ? 'Saving…' : company ? 'Update Company' : 'Create Company'}
+          </button>
+          <button type="button" className="button is-light" onClick={() => onSuccess ? onSuccess() : router.back()}>
+            Cancel
+          </button>
+        </div>
       </div>
     </form>
   )

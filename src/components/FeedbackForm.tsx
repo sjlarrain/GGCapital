@@ -1,11 +1,14 @@
 'use client'
 import { useState } from 'react'
 import { submitFeedback } from '@/lib/actions/interactions'
-import Textarea from './ui/Textarea'
-import Button from './ui/Button'
 import Alert from './ui/Alert'
 
-export default function FeedbackForm({ userId }: { userId: string }) {
+interface FeedbackFormProps {
+  userId: string
+  onSuccess?: () => void
+}
+
+export default function FeedbackForm({ userId, onSuccess }: FeedbackFormProps) {
   const [text, setText] = useState('')
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
@@ -18,22 +21,34 @@ export default function FeedbackForm({ userId }: { userId: string }) {
     setText('')
     setDone(true)
     setSaving(false)
-    setTimeout(() => setDone(false), 3000)
+    setTimeout(() => {
+      setDone(false)
+      onSuccess?.()
+    }, 1500)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
-      <h2 className="text-sm font-semibold text-gray-700">Submit feedback</h2>
-      {done && <Alert type="success">Feedback submitted!</Alert>}
-      <Textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Describe the issue or suggestion…"
-        rows={3}
-      />
-      <Button type="submit" disabled={saving || !text.trim()}>
-        {saving ? 'Submitting…' : 'Submit'}
-      </Button>
+    <form onSubmit={handleSubmit}>
+      {done && <Alert type="success" className="mb-4">Feedback submitted — thank you!</Alert>}
+      <div className="field">
+        <label className="label">Your message</label>
+        <div className="control">
+          <textarea
+            className="textarea"
+            rows={4}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Describe an issue, idea, or anything you'd like to see improved…"
+          />
+        </div>
+      </div>
+      <div className="field">
+        <div className="control">
+          <button type="submit" className="button is-primary" disabled={saving || !text.trim()}>
+            {saving ? 'Submitting…' : 'Submit feedback'}
+          </button>
+        </div>
+      </div>
     </form>
   )
 }

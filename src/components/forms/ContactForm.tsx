@@ -1,14 +1,20 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Input from '@/components/ui/Input'
-import Button from '@/components/ui/Button'
 import Alert from '@/components/ui/Alert'
 import TagPicker from '@/components/TagPicker'
+import Modal from '@/components/ui/Modal'
+import Autocomplete from '@/components/Autocomplete'
 import { createContact, updateContact, checkContactDuplicate } from '@/lib/actions/contacts'
-import { createCompany } from '@/lib/actions/companies'
 import { createTag } from '@/lib/actions/tags'
 import type { Contact, TagCatalogs } from '@/types'
+
+// Lazy import to avoid circular reference at module level
+let CompanyFormComponent: React.ComponentType<{
+  tags: TagCatalogs
+  userId: string
+  onSuccess?: (newCompany?: { id: string; name: string }) => void
+}> | null = null
 
 interface ContactFormProps {
   contact?: Contact
@@ -16,9 +22,10 @@ interface ContactFormProps {
   companies: { id: string; name: string }[]
   userId: string
   defaultCompanyId?: string
+  onSuccess?: () => void
 }
 
-export default function ContactForm({ contact, tags, companies, userId, defaultCompanyId }: ContactFormProps) {
+export default function ContactForm({ contact, tags, companies, userId, defaultCompanyId, onSuccess }: ContactFormProps) {
   const router = useRouter()
   const [name, setName] = useState(contact?.name ?? '')
   const [role, setRole] = useState(contact?.role ?? '')
@@ -34,8 +41,8 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
   const [companyList, setCompanyList] = useState(companies)
   const [duplicates, setDuplicates] = useState<{ id: string; name: string }[]>([])
   const [dupDismissed, setDupDismissed] = useState(false)
-  const [creatingCompany, setCreatingCompany] = useState(false)
-  const [newCompanyName, setNewCompanyName] = useState('')
+  const [newCompanyOpen, setNewCompanyOpen] = useState(false)
+  const [CompanyForm, setCompanyForm] = useState<typeof CompanyFormComponent>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -50,25 +57,20 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
     return () => clearTimeout(timer)
   }, [name, contact?.id])
 
-  const handleQuickCreateCompany = async () => {
-    if (!newCompanyName.trim()) return
-    const c = await createCompany({
-      name: newCompanyName.trim(),
-      description: null,
-      source: null,
-      industry_ids: [],
-      region_ids: [],
-      stage_id: null,
-      type_id: null,
-      status_id: null,
-      created_by: userId,
-      updated_by: userId,
-      deleted_at: null,
-    })
-    setCompanyList((prev) => [...prev, { id: c.id, name: c.name }])
-    setCompanyId(c.id)
-    setNewCompanyName('')
-    setCreatingCompany(false)
+  const openNewCompany = async () => {
+    if (!CompanyForm) {
+      const mod = await import('./CompanyForm')
+      setCompanyForm(() => mod.default)
+    }
+    setNewCompanyOpen(true)
+  }
+
+  const handleCompanyCreated = (newCompany?: { id: string; name: string }) => {
+    if (newCompany) {
+      setCompanyList((prev) => [...prev, newCompany])
+      setCompanyId(newCompany.id)
+    }
+    setNewCompanyOpen(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,13 +93,14 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
         investment_focus: investmentFocus,
         updated_by: userId,
       }
-
       if (contact) {
         await updateContact(contact.id, payload)
-        router.push(`/contacts/${contact.id}`)
+        if (onSuccess) onSuccess()
+        else router.push(`/contacts/${contact.id}`)
       } else {
         const created = await createContact({ ...payload, created_by: userId, deleted_at: null })
-        router.push(`/contacts/${created.id}`)
+        if (onSuccess) onSuccess()
+        else router.push(`/contacts/${created.id}`)
       }
     } catch (err) {
       setError(String(err))
@@ -112,92 +115,141 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
     return newTag
   }
 
+  const companyOptions = companyList.map((c) => ({ id: c.id, label: c.name }))
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 max-w-xl">
-      {error && <Alert type="error">{error}</Alert>}
+    <>
+      <form onSubmit={handleSubmit}>
+        {error && <Alert type="error" className="mb-4">{error}</Alert>}
 
-      {duplicates.length > 0 && !dupDismissed && (
-        <Alert type="warning" title="Possible duplicate">
-          Similar contact: {duplicates.map((d) => d.name).join(', ')}.
-          <Button type="button" variant="ghost" size="sm" className="ml-2 underline" onClick={() => setDupDismissed(true)}>
-            Continue anyway
-          </Button>
-        </Alert>
-      )}
-
-      <Input id="name" label="Name *" value={name} onChange={(e) => setName(e.target.value)} required />
-      <Input id="role" label="Role / Title" value={role} onChange={(e) => setRole(e.target.value)} />
-      <Input id="employer" label="Employer" value={employer} onChange={(e) => setEmployer(e.target.value)} />
-      <Input id="email" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <Input id="phone" label="Phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
-      <Input id="expertise" label="Expertise" value={expertise} onChange={(e) => setExpertise(e.target.value)} />
-
-      {/* Company link */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Company (optional)</label>
-        <div className="flex gap-2">
-          <select
-            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            value={companyId}
-            onChange={(e) => setCompanyId(e.target.value)}
-          >
-            <option value="">No company</option>
-            {companyList.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <Button type="button" variant="secondary" size="sm" onClick={() => setCreatingCompany(true)}>
-            + New
-          </Button>
-        </div>
-        {creatingCompany && (
-          <div className="flex gap-2 mt-2">
-            <Input
-              value={newCompanyName}
-              onChange={(e) => setNewCompanyName(e.target.value)}
-              placeholder="New company name"
-            />
-            <Button type="button" size="sm" onClick={handleQuickCreateCompany}>Create</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setCreatingCompany(false)}>Cancel</Button>
-          </div>
+        {duplicates.length > 0 && !dupDismissed && (
+          <Alert type="warning" title="Possible duplicate" className="mb-4">
+            Similar contact: {duplicates.map((d) => d.name).join(', ')}.{' '}
+            <button type="button" className="button is-ghost is-small" onClick={() => setDupDismissed(true)}>
+              Continue anyway
+            </button>
+          </Alert>
         )}
-      </div>
 
-      {/* Investment Focus — fixed list, multi-select */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Investment Focus</label>
-        <div className="flex flex-wrap gap-3">
-          {['Accelerator', 'Builder', 'Funds', 'PE', 'Startups'].map((option) => (
-            <label key={option} className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                className="rounded"
-                checked={investmentFocus.includes(option)}
-                onChange={(e) =>
-                  setInvestmentFocus((prev) =>
-                    e.target.checked ? [...prev, option] : prev.filter((v) => v !== option)
-                  )
-                }
-              />
-              {option}
-            </label>
-          ))}
+        <div className="field">
+          <label className="label">Name *</label>
+          <div className="control">
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+          </div>
         </div>
-      </div>
 
-      <div className="relative">
-        <TagPicker label="Industries" catalog={tagState.industries} selected={industryIds} onChange={setIndustryIds} onCreateTag={makeTagCreator('industries')} />
-      </div>
-      <div className="relative">
-        <TagPicker label="Regions" catalog={tagState.regions} selected={regionIds} onChange={setRegionIds} onCreateTag={makeTagCreator('regions')} />
-      </div>
+        <div className="columns">
+          <div className="column">
+            <div className="field">
+              <label className="label">Role / Title</label>
+              <div className="control">
+                <input className="input" value={role} onChange={(e) => setRole(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <div className="column">
+            <div className="field">
+              <label className="label">Employer</label>
+              <div className="control">
+                <input className="input" value={employer} onChange={(e) => setEmployer(e.target.value)} />
+              </div>
+            </div>
+          </div>
+        </div>
 
-      <div className="flex gap-3 pt-2">
-        <Button type="submit" disabled={saving || (duplicates.length > 0 && !dupDismissed)}>
-          {saving ? 'Saving…' : contact ? 'Update Contact' : 'Create Contact'}
-        </Button>
-        <Button type="button" variant="secondary" onClick={() => router.back()}>Cancel</Button>
-      </div>
-    </form>
+        <div className="columns">
+          <div className="column">
+            <div className="field">
+              <label className="label">Email</label>
+              <div className="control">
+                <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <div className="column">
+            <div className="field">
+              <label className="label">Phone</label>
+              <div className="control">
+                <input className="input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="field">
+          <label className="label">Expertise</label>
+          <div className="control">
+            <input className="input" value={expertise} onChange={(e) => setExpertise(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="field">
+          <label className="label">Company</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <Autocomplete
+                options={companyOptions}
+                value={companyId}
+                onChange={setCompanyId}
+                placeholder="Search companies…"
+                clearLabel="No company"
+              />
+            </div>
+            <button type="button" className="button is-light is-small" style={{ alignSelf: 'flex-end', marginBottom: 0 }} onClick={openNewCompany}>
+              + New
+            </button>
+          </div>
+        </div>
+
+        <div className="field">
+          <label className="label">Investment Focus</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            {['Accelerator', 'Builder', 'Funds', 'PE', 'Startups'].map((option) => (
+              <label key={option} className="checkbox">
+                <input
+                  type="checkbox"
+                  className="mr-1"
+                  checked={investmentFocus.includes(option)}
+                  onChange={(e) =>
+                    setInvestmentFocus((prev) =>
+                      e.target.checked ? [...prev, option] : prev.filter((v) => v !== option)
+                    )
+                  }
+                />
+                {option}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative">
+          <TagPicker label="Industries" catalog={tagState.industries} selected={industryIds} onChange={setIndustryIds} onCreateTag={makeTagCreator('industries')} />
+        </div>
+        <div className="relative">
+          <TagPicker label="Regions" catalog={tagState.regions} selected={regionIds} onChange={setRegionIds} onCreateTag={makeTagCreator('regions')} />
+        </div>
+
+        <div className="field mt-4">
+          <div className="buttons">
+            <button type="submit" className="button is-primary" disabled={saving || (duplicates.length > 0 && !dupDismissed)}>
+              {saving ? 'Saving…' : contact ? 'Update Contact' : 'Create Contact'}
+            </button>
+            <button type="button" className="button is-light" onClick={() => onSuccess ? onSuccess() : router.back()}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <Modal open={newCompanyOpen} onClose={() => setNewCompanyOpen(false)} title="New Company" wide>
+        {CompanyForm && (
+          <CompanyForm
+            tags={tagState}
+            userId={userId}
+            onSuccess={handleCompanyCreated}
+          />
+        )}
+      </Modal>
+    </>
   )
 }

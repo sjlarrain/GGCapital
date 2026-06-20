@@ -19,8 +19,8 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
   if (!contact) notFound()
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Edit Contact</h1>
+    <div className="gg-detail">
+      <h1 className="title is-3 mb-5">Edit Contact</h1>
       <ContactForm
         contact={contact}
         tags={tags}

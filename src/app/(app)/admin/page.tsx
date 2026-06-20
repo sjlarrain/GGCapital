@@ -12,7 +12,6 @@ export default async function AdminPage() {
     .eq('id', user!.id)
     .single()
 
-  // Admin-only — return 404 for non-admins per spec
   if (profile?.role !== 'admin') {
     redirect('/not-found')
   }
@@ -23,32 +22,44 @@ export default async function AdminPage() {
     .order('created_at')
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-900">Admin</h1>
+    <div className="gg-detail">
+      <div className="mb-6">
+        <h1 className="title is-3">Admin</h1>
+      </div>
 
-      <div>
-        <h2 className="text-base font-semibold text-gray-800 mb-3">Invite user</h2>
+      <div className="box mb-5">
+        <p className="is-size-6 has-text-weight-semibold mb-4">Invite user</p>
         <InviteForm />
       </div>
 
-      <div>
-        <h2 className="text-base font-semibold text-gray-800 mb-3">Users ({users?.length ?? 0})</h2>
-        <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
-          {(users ?? []).map((u) => (
-            <div key={u.id} className="flex items-center justify-between px-4 py-3 text-sm">
-              <div>
-                <p className="font-medium text-gray-900">{u.email}</p>
-              </div>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                u.role === 'admin'
-                  ? 'bg-purple-100 text-purple-700'
-                  : 'bg-gray-100 text-gray-600'
-              }`}>
-                {u.role}
-              </span>
-            </div>
-          ))}
-        </div>
+      <div className="box">
+        <p className="is-size-6 has-text-weight-semibold mb-4">
+          Users ({users?.length ?? 0})
+        </p>
+        <table className="table is-fullwidth">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Joined</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(users ?? []).map((u) => (
+              <tr key={u.id}>
+                <td>{u.email}</td>
+                <td>
+                  <span className={`tag ${u.role === 'admin' ? 'is-primary is-light' : 'is-light'}`}>
+                    {u.role}
+                  </span>
+                </td>
+                <td className="is-size-7 has-text-grey">
+                  {new Date(u.created_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

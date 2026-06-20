@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Button from './ui/Button'
 import { softDeleteCompany } from '@/lib/actions/companies'
 import { softDeleteContact } from '@/lib/actions/contacts'
 import { softDeleteMeeting } from '@/lib/actions/meetings'
@@ -32,21 +31,21 @@ export default function SoftDeleteButton({ entityType, id, userId }: Props) {
 
   if (!confirming) {
     return (
-      <Button variant="danger" size="sm" onClick={() => setConfirming(true)}>
+      <button className="button is-danger is-small" onClick={() => setConfirming(true)}>
         Delete
-      </Button>
+      </button>
     )
   }
 
   return (
-    <div className="flex gap-2 items-center">
-      <span className="text-sm text-red-600">Sure?</span>
-      <Button variant="danger" size="sm" onClick={handleDelete} disabled={loading}>
+    <div className="buttons">
+      <span className="has-text-danger is-size-7 mr-2" style={{ alignSelf: 'center' }}>Sure?</span>
+      <button className="button is-danger is-small" onClick={handleDelete} disabled={loading}>
         {loading ? '…' : 'Yes, delete'}
-      </Button>
-      <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
+      </button>
+      <button className="button is-ghost is-small" onClick={() => setConfirming(false)}>
         Cancel
-      </Button>
+      </button>
     </div>
   )
 }

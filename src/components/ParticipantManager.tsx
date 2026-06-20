@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { addParticipant, removeParticipant } from '@/lib/actions/meetings'
-import Button from './ui/Button'
 
 interface Participant {
   id: string
@@ -49,56 +48,80 @@ export default function ParticipantManager({ meetingId, participants, allContact
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg">
-      <div className="divide-y divide-gray-100">
-        {list.length === 0 && !adding && (
-          <p className="px-4 py-3 text-sm text-gray-400">No participants added.</p>
-        )}
-        {list.map((p) => (
-          <div key={p.id} className="flex items-center justify-between px-4 py-3">
+    <div className="box p-0" style={{ overflow: 'hidden' }}>
+      {list.length === 0 && !adding && (
+        <p className="px-4 py-3 is-size-7 has-text-grey" style={{ padding: '0.75rem 1rem' }}>
+          No participants added.
+        </p>
+      )}
+      {list.map((p) => (
+        <div
+          key={p.id}
+          className="level"
+          style={{ padding: '0.6rem 1rem', borderBottom: '1px solid #f0f0f0', margin: 0 }}
+        >
+          <div className="level-left">
             <div>
               {p.contact ? (
-                <Link href={`/contacts/${p.contact.id}`} className="text-sm font-medium text-blue-600 hover:underline">
+                <Link href={`/contacts/${p.contact.id}`} className="has-text-link is-size-7 has-text-weight-medium">
                   {p.contact.name}
                 </Link>
               ) : (
-                <span className="text-sm text-gray-400">Unknown contact</span>
+                <span className="is-size-7 has-text-grey">Unknown contact</span>
               )}
               {p.contact?.role && (
-                <p className="text-xs text-gray-400">{p.contact.role}</p>
+                <p className="is-size-7 has-text-grey">{p.contact.role}</p>
               )}
             </div>
-            <Button variant="ghost" size="sm" onClick={() => handleRemove(p.contact_id)}>
-              Remove
-            </Button>
           </div>
-        ))}
-      </div>
-
-      <div className="border-t border-gray-100 px-4 py-3">
-        {adding ? (
-          <div className="flex gap-2">
-            <select
-              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
-              value={selectedContactId}
-              onChange={(e) => setSelectedContactId(e.target.value)}
+          <div className="level-right">
+            <button
+              className="button is-ghost is-small has-text-danger"
+              onClick={() => handleRemove(p.contact_id)}
             >
-              <option value="">Select contact…</option>
-              {available.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}{c.role ? ` · ${c.role}` : ''}
-                </option>
-              ))}
-            </select>
-            <Button size="sm" onClick={handleAdd} disabled={!selectedContactId || loading}>
-              {loading ? '…' : 'Add'}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setAdding(false)}>Cancel</Button>
+              Remove
+            </button>
+          </div>
+        </div>
+      ))}
+
+      <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid #f0f0f0' }}>
+        {adding ? (
+          <div className="field has-addons mb-0">
+            <div className="control is-expanded">
+              <div className="select is-small is-fullwidth">
+                <select
+                  value={selectedContactId}
+                  onChange={(e) => setSelectedContactId(e.target.value)}
+                >
+                  <option value="">Select contact…</option>
+                  {available.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}{c.role ? ` · ${c.role}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="control">
+              <button
+                className="button is-primary is-small"
+                onClick={handleAdd}
+                disabled={!selectedContactId || loading}
+              >
+                {loading ? '…' : 'Add'}
+              </button>
+            </div>
+            <div className="control">
+              <button className="button is-ghost is-small" onClick={() => setAdding(false)}>
+                Cancel
+              </button>
+            </div>
           </div>
         ) : (
-          <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
+          <button className="button is-light is-small" onClick={() => setAdding(true)}>
             + Add participant
-          </Button>
+          </button>
         )}
       </div>
     </div>

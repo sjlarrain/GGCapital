@@ -1,8 +1,11 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { UserProfile } from '@/types'
+import Modal from './ui/Modal'
+import FeedbackForm from './FeedbackForm'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: '⊞' },
@@ -24,67 +27,71 @@ interface SidebarProps {
 
 export default function Sidebar({ profile, onSignOut }: SidebarProps) {
   const pathname = usePathname()
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href)
 
   return (
-    <aside className="w-56 shrink-0 bg-gray-900 text-gray-100 flex flex-col h-screen sticky top-0">
-      <div className="px-4 py-5 border-b border-gray-700">
-        <span className="text-lg font-bold tracking-tight text-white">GG Capital</span>
-      </div>
+    <>
+      <aside className="gg-sidebar">
+        <div className="gg-sidebar-brand">GG Capital</div>
 
-      <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-              isActive(item.href)
-                ? 'bg-gray-700 text-white'
-                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-            )}
-          >
-            <span className="w-4 text-center">{item.icon}</span>
-            {item.label}
-          </Link>
-        ))}
-
-        {profile.role === 'admin' && (
-          <>
-            <div className="pt-4 pb-1 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              Admin
-            </div>
-            {adminItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                  isActive(item.href)
-                    ? 'bg-gray-700 text-white'
-                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                )}
-              >
-                <span className="w-4 text-center">{item.icon}</span>
-                {item.label}
-              </Link>
+        <nav className="menu px-2 py-3" style={{ flex: 1 }}>
+          <ul className="menu-list">
+            {navItems.map((item) => (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className={cn(isActive(item.href) && 'is-active')}
+                >
+                  <span>{item.icon}</span>
+                  {item.label}
+                </Link>
+              </li>
             ))}
-          </>
-        )}
-      </nav>
+          </ul>
 
-      <div className="px-4 py-3 border-t border-gray-700 text-xs">
-        <p className="text-gray-400 truncate">{profile.email}</p>
-        <p className="text-gray-600 capitalize">{profile.role}</p>
-        <button
-          onClick={onSignOut}
-          className="mt-2 text-gray-500 hover:text-gray-300 transition-colors"
-        >
-          Sign out
-        </button>
-      </div>
-    </aside>
+          {profile.role === 'admin' && (
+            <>
+              <p className="menu-label mt-4">Admin</p>
+              <ul className="menu-list">
+                {adminItems.map((item) => (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      className={cn(isActive(item.href) && 'is-active')}
+                    >
+                      <span>{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </nav>
+
+        <div className="gg-sidebar-footer">
+          <p style={{ color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {profile.email}
+          </p>
+          <p style={{ color: '#4a5568', textTransform: 'capitalize', marginTop: 2 }}>{profile.role}</p>
+          <div style={{ marginTop: 8, display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <button className="gg-feedback-btn" onClick={() => setFeedbackOpen(true)}>
+              💬 Feedback
+            </button>
+            <span style={{ color: '#2d3748' }}>·</span>
+            <button className="gg-feedback-btn" onClick={onSignOut}>
+              Sign out
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <Modal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} title="Send Feedback">
+        <FeedbackForm userId={profile.id} onSuccess={() => setFeedbackOpen(false)} />
+      </Modal>
+    </>
   )
 }

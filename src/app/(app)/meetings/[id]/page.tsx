@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server'
 import { getMeeting, getMeetingParticipants } from '@/lib/actions/meetings'
 import { formatDate } from '@/lib/utils'
 import Badge from '@/components/ui/Badge'
-import Button from '@/components/ui/Button'
 import SoftDeleteButton from '@/components/SoftDeleteButton'
 import ParticipantManager from '@/components/ParticipantManager'
 
@@ -27,54 +26,60 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
     .order('name')
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div className="flex items-start justify-between">
-        <div>
-          <Link href="/meetings" className="text-sm text-gray-500 hover:underline">← Meetings</Link>
-          <h1 className="text-2xl font-bold text-gray-900 mt-1">{meeting.title}</h1>
-          {meeting.deleted_at && <Badge variant="red" className="mt-1">Deleted</Badge>}
+    <div className="gg-detail">
+      <div className="level mb-4">
+        <div className="level-left">
+          <div>
+            <Link href="/meetings" className="is-size-7 has-text-grey">← Meetings</Link>
+            <h1 className="title is-3 mt-1 mb-0">{meeting.title}</h1>
+            {meeting.deleted_at && <Badge variant="red" className="mt-1">Deleted</Badge>}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Link href={`/meetings/${id}/edit`}>
-            <Button variant="secondary" size="sm">Edit</Button>
-          </Link>
-          {!meeting.deleted_at && (
-            <SoftDeleteButton entityType="meeting" id={id} userId={user!.id} />
-          )}
+        <div className="level-right">
+          <div className="buttons">
+            <Link href={`/meetings/${id}/edit`} className="button is-light is-small">Edit</Link>
+            {!meeting.deleted_at && (
+              <SoftDeleteButton entityType="meeting" id={id} userId={user!.id} />
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-3">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="text-gray-500">Date: </span>
-            <span className="font-medium">{formatDate(meeting.date)}</span>
+      <div className="box mb-5">
+        <div className="columns is-multiline is-size-7">
+          <div className="column is-half">
+            <span className="has-text-grey">Date: </span>
+            <span className="has-text-weight-semibold">{formatDate(meeting.date)}</span>
           </div>
-          <div>
-            <span className="text-gray-500">Company: </span>
+          <div className="column is-half">
+            <span className="has-text-grey">Company: </span>
             {meeting.company
-              ? <Link href={`/companies/${(meeting.company as { id: string; name: string }).id}`} className="text-blue-600 hover:underline">{(meeting.company as { id: string; name: string }).name}</Link>
-              : <span className="text-gray-400">—</span>}
+              ? <Link href={`/companies/${(meeting.company as { id: string; name: string }).id}`} className="has-text-link">
+                  {(meeting.company as { id: string; name: string }).name}
+                </Link>
+              : <span className="has-text-grey">—</span>}
           </div>
           {(meeting as { meetingType?: { name: string } | null }).meetingType && (
-            <div>
-              <span className="text-gray-500">Type: </span>
-              <span className="font-medium">{(meeting as { meetingType: { name: string } }).meetingType.name}</span>
+            <div className="column is-half">
+              <span className="has-text-grey">Type: </span>
+              <span className="has-text-weight-semibold">
+                {(meeting as { meetingType: { name: string } }).meetingType.name}
+              </span>
             </div>
           )}
         </div>
         {meeting.notes && (
-          <div className="pt-2 border-t border-gray-100">
-            <p className="text-sm font-medium text-gray-600 mb-1">Notes</p>
-            <p className="text-sm text-gray-800 whitespace-pre-wrap">{meeting.notes}</p>
+          <div className="mt-3" style={{ borderTop: '1px solid #f5f5f5', paddingTop: '0.75rem' }}>
+            <p className="is-size-7 has-text-grey mb-2">Notes</p>
+            <p className="is-size-6" style={{ whiteSpace: 'pre-wrap' }}>{meeting.notes}</p>
           </div>
         )}
       </div>
 
       <div>
-        <h2 className="text-base font-semibold text-gray-800 mb-3">
+        <p className="is-size-6 has-text-weight-semibold mb-3">
           Participants ({participants.length})
-        </h2>
+        </p>
         <ParticipantManager
           meetingId={id}
           participants={participants}

@@ -20,12 +20,13 @@ export default async function NewMeetingPage({
   ])
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">New Meeting</h1>
+    <div className="gg-detail">
+      <h1 className="title is-3 mb-5">Log Meeting</h1>
       <MeetingForm
         companies={companies.map((c) => ({ id: c.id, name: c.name }))}
         contacts={contacts.map((c) => ({ id: c.id, name: c.name, role: c.role }))}
         meetingTypes={tags.meetingTypes}
+        tags={tags}
         userId={user!.id}
         defaultCompanyId={defaultCompanyId}
       />

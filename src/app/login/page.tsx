@@ -2,9 +2,6 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import Input from '@/components/ui/Input'
-import Button from '@/components/ui/Button'
-import Alert from '@/components/ui/Alert'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -31,39 +28,65 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">GG Capital</h1>
-          <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
+    <div className="gg-login-page">
+      <div style={{ width: '100%', maxWidth: 380 }}>
+        <div className="has-text-centered mb-6">
+          <h1 className="title is-3">GG Capital</h1>
+          <p className="subtitle is-6 has-text-grey">Sign in to your account</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white shadow-sm rounded-lg p-6 space-y-4 border border-gray-200">
-          {error && <Alert type="error">{error}</Alert>}
+        <div className="box">
+          <form onSubmit={handleSubmit}>
+            {error && (
+              <div className="notification is-danger is-light mb-4">
+                {error}
+              </div>
+            )}
 
-          <Input
-            id="email"
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            required
-            autoFocus
-          />
-          <Input
-            id="password"
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-          />
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign in'}
-          </Button>
-        </form>
+            <div className="field">
+              <label className="label">Email</label>
+              <div className="control has-icons-left">
+                <input
+                  className="input"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  autoFocus
+                />
+                <span className="icon is-small is-left">✉</span>
+              </div>
+            </div>
+
+            <div className="field">
+              <label className="label">Password</label>
+              <div className="control has-icons-left">
+                <input
+                  className="input"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+                <span className="icon is-small is-left">🔒</span>
+              </div>
+            </div>
+
+            <div className="field mt-5">
+              <div className="control">
+                <button
+                  type="submit"
+                  className={`button is-primary is-fullwidth${loading ? ' is-loading' : ''}`}
+                  disabled={loading}
+                >
+                  Sign in
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   )

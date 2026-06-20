@@ -1,7 +1,5 @@
 'use client'
 import { useState } from 'react'
-import Input from './ui/Input'
-import Button from './ui/Button'
 import Alert from './ui/Alert'
 
 export default function InviteForm() {
@@ -31,20 +29,29 @@ export default function InviteForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
-      {result?.error && <Alert type="error">{result.error}</Alert>}
-      {result?.success && <Alert type="success">Invite sent! The user will receive an email to set their password.</Alert>}
-      <div className="flex gap-2">
-        <Input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="user@example.com"
-          required
-        />
-        <Button type="submit" disabled={loading}>
-          {loading ? 'Sending…' : 'Invite'}
-        </Button>
+    <form onSubmit={handleSubmit}>
+      {result?.error && <Alert type="error" className="mb-3">{result.error}</Alert>}
+      {result?.success && (
+        <Alert type="success" className="mb-3">
+          Invite sent! The user will receive an email to set their password.
+        </Alert>
+      )}
+      <div className="field has-addons">
+        <div className="control is-expanded">
+          <input
+            type="email"
+            className="input"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="user@example.com"
+            required
+          />
+        </div>
+        <div className="control">
+          <button type="submit" className="button is-primary" disabled={loading}>
+            {loading ? 'Sending…' : 'Invite'}
+          </button>
+        </div>
       </div>
     </form>
   )

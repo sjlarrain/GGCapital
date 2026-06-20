@@ -1,8 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getFeedback } from '@/lib/actions/interactions'
 import { formatDate } from '@/lib/utils'
-import FeedbackForm from '@/components/FeedbackForm'
 
 export default async function FeedbackPage() {
   const supabase = await createClient()
@@ -14,27 +12,54 @@ export default async function FeedbackPage() {
     .eq('id', user!.id)
     .single()
 
-  // Admin-only route — return 404 for non-admins per spec
   if (profile?.role !== 'admin') {
     redirect('/not-found')
   }
 
-  const feedbackList = await getFeedback()
+  const { data: feedbackList } = await supabase
+    .from('feedback')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  const userIds = [...new Set((feedbackList ?? []).map((f) => f.created_by as string))]
+  let profileMap = new Map<string, string>()
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('user_profiles')
+      .select('id, email')
+      .in('id', userIds)
+    profileMap = new Map((profiles ?? []).map((p) => [p.id, p.email]))
+  }
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-900">Feedback</h1>
+    <div className="gg-detail">
+      <div className="mb-6">
+        <h1 className="title is-3">Feedback</h1>
+        <p className="subtitle is-6 has-text-grey">
+          {feedbackList?.length ?? 0} submissions from users
+        </p>
+      </div>
 
-      <FeedbackForm userId={user!.id} />
+      {(feedbackList ?? []).length === 0 && (
+        <div className="notification is-light">
+          No feedback submitted yet.
+        </div>
+      )}
 
-      <div className="space-y-3">
-        {feedbackList.length === 0 && (
-          <p className="text-sm text-gray-400">No feedback submitted yet.</p>
-        )}
-        {feedbackList.map((f) => (
-          <div key={f.id} className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-sm text-gray-800">{f.description}</p>
-            <p className="text-xs text-gray-400 mt-2">{formatDate(f.created_at)}</p>
+      <div>
+        {(feedbackList ?? []).map((f) => (
+          <div key={f.id} className="box mb-3">
+            <p className="mb-3" style={{ whiteSpace: 'pre-wrap' }}>{f.description}</p>
+            <div className="level is-mobile">
+              <div className="level-left">
+                <span className="tag is-light is-size-7">
+                  {profileMap.get(f.created_by as string) ?? 'Unknown user'}
+                </span>
+              </div>
+              <div className="level-right">
+                <span className="is-size-7 has-text-grey">{formatDate(f.created_at)}</span>
+              </div>
+            </div>
           </div>
         ))}
       </div>

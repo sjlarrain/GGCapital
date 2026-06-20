@@ -22,13 +22,14 @@ export default async function EditMeetingPage({ params }: { params: Promise<{ id
   if (!meeting) notFound()
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Edit Meeting</h1>
+    <div className="gg-detail">
+      <h1 className="title is-3 mb-5">Edit Meeting</h1>
       <MeetingForm
         meeting={meeting}
         companies={companies.map((c) => ({ id: c.id, name: c.name }))}
         contacts={contacts.map((c) => ({ id: c.id, name: c.name, role: c.role }))}
         meetingTypes={tags.meetingTypes}
+        tags={tags}
         userId={user!.id}
         defaultTypeId={meeting.type_id ?? undefined}
         initialParticipantIds={participants.map((p) => p.contact_id)}
