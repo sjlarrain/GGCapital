@@ -31,7 +31,7 @@ export interface Company {
   source: 'Direct' | 'Fund' | null
   industry_ids: string[]
   region_ids: string[]
-  stage_id: string | null
+  stage_ids: string[]
   type_id: string | null
   status_id: string | null
   created_by: string
@@ -118,7 +118,7 @@ export interface Feedback {
 export interface CompanyWithTags extends Company {
   industries: TagItem[]
   regions: TagItem[]
-  stage: TagItem | null
+  stages: TagItem[]
   type: TagItem | null
   status: TagItem | null
 }
