@@ -42,4 +42,10 @@ next-env.d.ts
 .env.local
 
 # local database exports
-/BBDD/
+
+# BBDD raw source data — accessible locally, never committed
+BBDD/CRM/
+BBDD/Meetings/
+BBDD/Contacts/
+*.csv
+
