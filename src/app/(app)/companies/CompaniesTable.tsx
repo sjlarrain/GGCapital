@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import Drawer from '@/components/Drawer'
 import CompanyForm from '@/components/forms/CompanyForm'
 import Badge from '@/components/ui/Badge'
+import SearchableSelect from '@/components/SearchableSelect'
 import type { TagCatalogs } from '@/types'
 
 type CompanyRow = {
   id: string
   name: string
   type_id: string | null
-  stage_id: string | null
+  stage_ids: string[]
   status_id: string | null
   industry_ids: string[] | null
 }
@@ -35,7 +36,7 @@ export default function CompaniesTable({ companies, tags, userId }: Props) {
 
   const filtered = useMemo(() => {
     let list = companies
-    if (stageFilter) list = list.filter((c) => c.stage_id === stageFilter)
+    if (stageFilter) list = list.filter((c) => c.stage_ids.includes(stageFilter))
     if (search) {
       const q = search.toLowerCase()
       list = list.filter((c) => c.name.toLowerCase().includes(q))
@@ -44,8 +45,8 @@ export default function CompaniesTable({ companies, tags, userId }: Props) {
       let av = '', bv = ''
       if (sortKey === 'name') { av = a.name; bv = b.name }
       else if (sortKey === 'stage') {
-        av = tags.stages.find((t) => t.id === a.stage_id)?.name ?? ''
-        bv = tags.stages.find((t) => t.id === b.stage_id)?.name ?? ''
+        av = a.stage_ids.map(id => tags.stages.find((t) => t.id === id)?.name ?? '').join(',')
+        bv = b.stage_ids.map(id => tags.stages.find((t) => t.id === id)?.name ?? '').join(',')
       }
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
     })
@@ -97,18 +98,14 @@ export default function CompaniesTable({ companies, tags, userId }: Props) {
             </div>
           </div>
           <div className="level-item">
-            <div className="field mb-0">
-              <div className="control">
-                <div className="select is-small">
-                  <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}>
-                    <option value="">All stages</option>
-                    {tags.stages.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
+            <SearchableSelect
+              options={tags.stages.map((s) => ({ id: s.id, label: s.name }))}
+              value={stageFilter}
+              onChange={setStageFilter}
+              placeholder="All stages"
+              clearLabel="All stages"
+              size="small"
+            />
           </div>
           <div className="level-item">
             <button className="button is-primary is-small" onClick={() => setDrawerOpen(true)}>
@@ -152,7 +149,9 @@ export default function CompaniesTable({ companies, tags, userId }: Props) {
                   {c.type_id ? tags.types.find((t) => t.id === c.type_id)?.name : '—'}
                 </td>
                 <td className="has-text-grey">
-                  {c.stage_id ? tags.stages.find((t) => t.id === c.stage_id)?.name : '—'}
+                  {c.stage_ids.length > 0
+                    ? c.stage_ids.map(id => tags.stages.find((t) => t.id === id)?.name).filter(Boolean).join(', ')
+                    : '—'}
                 </td>
                 <td>
                   {c.status_id ? (

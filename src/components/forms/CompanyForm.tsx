@@ -21,7 +21,7 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
   const [source, setSource] = useState<'' | 'Direct' | 'Fund'>(company?.source ?? '')
   const [industryIds, setIndustryIds] = useState<string[]>(company?.industry_ids ?? [])
   const [regionIds, setRegionIds] = useState<string[]>(company?.region_ids ?? [])
-  const [stageId, setStageId] = useState<string[]>(company?.stage_id ? [company.stage_id] : [])
+  const [stageIds, setStageIds] = useState<string[]>(company?.stage_ids ?? [])
   const [typeId, setTypeId] = useState<string[]>(company?.type_id ? [company.type_id] : [])
   const [statusId, setStatusId] = useState<string[]>(company?.status_id ? [company.status_id] : [])
   const [tagState, setTagState] = useState(tags)
@@ -54,7 +54,7 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
         source: source || null,
         industry_ids: industryIds,
         region_ids: regionIds,
-        stage_id: stageId[0] ?? null,
+        stage_ids: stageIds,
         type_id: typeId[0] ?? null,
         status_id: statusId[0] ?? null,
         updated_by: userId,
@@ -133,7 +133,7 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
         <TagPicker label="Type" catalog={tagState.types} selected={typeId} onChange={setTypeId} onCreateTag={makeTagCreator('types')} multi={false} />
       </div>
       <div className="relative">
-        <TagPicker label="Stage" catalog={tagState.stages} selected={stageId} onChange={setStageId} onCreateTag={makeTagCreator('stages')} multi={false} />
+        <TagPicker label="Stage" catalog={tagState.stages} selected={stageIds} onChange={setStageIds} onCreateTag={makeTagCreator('stages')} />
       </div>
       <div className="relative">
         <TagPicker label="Status" catalog={tagState.statuses} selected={statusId} onChange={setStatusId} onCreateTag={makeTagCreator('statuses')} multi={false} />

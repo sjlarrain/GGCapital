@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { addParticipant, removeParticipant } from '@/lib/actions/meetings'
+import SearchableSelect from '@/components/SearchableSelect'
 
 interface Participant {
   id: string
@@ -48,7 +49,7 @@ export default function ParticipantManager({ meetingId, participants, allContact
   }
 
   return (
-    <div className="box p-0" style={{ overflow: 'hidden' }}>
+    <div className="box p-0" style={{ overflow: 'visible' }}>
       {list.length === 0 && !adding && (
         <p className="px-4 py-3 is-size-7 has-text-grey" style={{ padding: '0.75rem 1rem' }}>
           No participants added.
@@ -87,36 +88,24 @@ export default function ParticipantManager({ meetingId, participants, allContact
 
       <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid #f0f0f0' }}>
         {adding ? (
-          <div className="field has-addons mb-0">
-            <div className="control is-expanded">
-              <div className="select is-small is-fullwidth">
-                <select
-                  value={selectedContactId}
-                  onChange={(e) => setSelectedContactId(e.target.value)}
-                >
-                  <option value="">Select contact…</option>
-                  {available.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}{c.role ? ` · ${c.role}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="control">
-              <button
-                className="button is-primary is-small"
-                onClick={handleAdd}
-                disabled={!selectedContactId || loading}
-              >
-                {loading ? '…' : 'Add'}
-              </button>
-            </div>
-            <div className="control">
-              <button className="button is-ghost is-small" onClick={() => setAdding(false)}>
-                Cancel
-              </button>
-            </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <SearchableSelect
+              options={available.map((c) => ({ id: c.id, label: c.name, sublabel: c.role ?? undefined }))}
+              value={selectedContactId}
+              onChange={setSelectedContactId}
+              placeholder="Search contact…"
+              size="small"
+            />
+            <button
+              className="button is-primary is-small"
+              onClick={handleAdd}
+              disabled={!selectedContactId || loading}
+            >
+              {loading ? '…' : 'Add'}
+            </button>
+            <button className="button is-ghost is-small" onClick={() => setAdding(false)}>
+              Cancel
+            </button>
           </div>
         ) : (
           <button className="button is-light is-small" onClick={() => setAdding(true)}>

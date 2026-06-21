@@ -62,7 +62,11 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
           </div>
           <div className="column is-half">
             <span className="has-text-grey">Stage: </span>
-            <span>{tagName(company.stage_id, tags.stages) ?? '—'}</span>
+            <span>
+              {((company.stage_ids ?? []) as string[]).length > 0
+                ? ((company.stage_ids ?? []) as string[]).map(id => tags.stages.find(t => t.id === id)?.name).filter(Boolean).join(', ')
+                : '—'}
+            </span>
           </div>
           <div className="column is-half">
             <span className="has-text-grey">Status: </span>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { formatDate } from '@/lib/utils'
 import Drawer from '@/components/Drawer'
 import MeetingForm from '@/components/forms/MeetingForm'
+import SearchableSelect from '@/components/SearchableSelect'
 import type { TagCatalogs } from '@/types'
 
 type MeetingRow = {
@@ -48,8 +49,8 @@ export default function MeetingsTable({ meetings, companies, contacts, meetingTy
     }
     return [...list].sort((a, b) => {
       let av = '', bv = ''
-      if (sortKey === 'title') { av = a.title; bv = b.title }
-      else if (sortKey === 'date') { av = a.date; bv = b.date }
+      if (sortKey === 'title') { av = a.title ?? ''; bv = b.title ?? '' }
+      else if (sortKey === 'date') { av = a.date ?? ''; bv = b.date ?? '' }
       else if (sortKey === 'company') { av = a.company?.name ?? ''; bv = b.company?.name ?? '' }
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
     })
@@ -105,18 +106,14 @@ export default function MeetingsTable({ meetings, companies, contacts, meetingTy
           </div>
           {meetingTypes.length > 0 && (
             <div className="level-item">
-              <div className="field mb-0">
-                <div className="control">
-                  <div className="select is-small">
-                    <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-                      <option value="">All types</option>
-                      {meetingTypes.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
+              <SearchableSelect
+                options={meetingTypes.map((t) => ({ id: t.id, label: t.name }))}
+                value={typeFilter}
+                onChange={setTypeFilter}
+                placeholder="All types"
+                clearLabel="All types"
+                size="small"
+              />
             </div>
           )}
           <div className="level-item">
