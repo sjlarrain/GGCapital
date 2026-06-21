@@ -45,46 +45,50 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      <div className="box mb-5">
-        <div className="columns is-multiline is-size-7">
-          <div className="column is-half">
-            <span className="has-text-grey">Date: </span>
-            <span className="has-text-weight-semibold">{formatDate(meeting.date)}</span>
-          </div>
-          <div className="column is-half">
-            <span className="has-text-grey">Company: </span>
-            {meeting.company
-              ? <Link href={`/companies/${(meeting.company as { id: string; name: string }).id}`} className="has-text-link">
-                  {(meeting.company as { id: string; name: string }).name}
-                </Link>
-              : <span className="has-text-grey">—</span>}
-          </div>
-          {(meeting as { meetingType?: { name: string } | null }).meetingType && (
-            <div className="column is-half">
-              <span className="has-text-grey">Type: </span>
-              <span className="has-text-weight-semibold">
-                {(meeting as { meetingType: { name: string } }).meetingType.name}
-              </span>
+      <div className="columns is-variable is-6">
+        <div className="column is-two-thirds">
+          <div className="box">
+            <div className="columns is-multiline is-size-7">
+              <div className="column is-half">
+                <span className="has-text-grey">Date: </span>
+                <span className="has-text-weight-semibold">{formatDate(meeting.date)}</span>
+              </div>
+              <div className="column is-half">
+                <span className="has-text-grey">Company: </span>
+                {meeting.company
+                  ? <Link href={`/companies/${(meeting.company as { id: string; name: string }).id}`} className="has-text-link">
+                      {(meeting.company as { id: string; name: string }).name}
+                    </Link>
+                  : <span className="has-text-grey">—</span>}
+              </div>
+              {(meeting as { meetingType?: { name: string } | null }).meetingType && (
+                <div className="column is-half">
+                  <span className="has-text-grey">Type: </span>
+                  <span className="has-text-weight-semibold">
+                    {(meeting as { meetingType: { name: string } }).meetingType.name}
+                  </span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        {meeting.notes && (
-          <div className="mt-3" style={{ borderTop: '1px solid #f5f5f5', paddingTop: '0.75rem' }}>
-            <p className="is-size-7 has-text-grey mb-2">Notes</p>
-            <p className="is-size-6" style={{ whiteSpace: 'pre-wrap' }}>{meeting.notes}</p>
+            {meeting.notes && (
+              <div className="mt-3" style={{ borderTop: '1px solid #f5f5f5', paddingTop: '0.75rem' }}>
+                <p className="is-size-7 has-text-grey mb-2">Notes</p>
+                <p className="is-size-6" style={{ whiteSpace: 'pre-wrap' }}>{meeting.notes}</p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
 
-      <div>
-        <p className="is-size-6 has-text-weight-semibold mb-3">
-          Participants ({participants.length})
-        </p>
-        <ParticipantManager
-          meetingId={id}
-          participants={participants}
-          allContacts={allContacts ?? []}
-        />
+        <div className="column">
+          <p className="is-size-6 has-text-weight-semibold mb-3">
+            Participants ({participants.length})
+          </p>
+          <ParticipantManager
+            meetingId={id}
+            participants={participants}
+            allContacts={allContacts ?? []}
+          />
+        </div>
       </div>
     </div>
   )

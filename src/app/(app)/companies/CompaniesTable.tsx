@@ -13,9 +13,15 @@ type CompanyRow = {
   name: string
   type_id: string | null
   stage_ids: string[]
+  investment_stage_ids: string[] | null
   status_id: string | null
   industry_ids: string[] | null
 }
+
+// Funds invest across stages (investment_stage_ids); portfolio companies have a
+// current round (stage_ids). Show a fund's investment stages when present.
+const effStageIds = (c: CompanyRow): string[] =>
+  c.investment_stage_ids?.length ? c.investment_stage_ids : c.stage_ids
 
 type SortKey = 'name' | 'stage'
 
@@ -36,7 +42,7 @@ export default function CompaniesTable({ companies, tags, userId }: Props) {
 
   const filtered = useMemo(() => {
     let list = companies
-    if (stageFilter) list = list.filter((c) => c.stage_ids.includes(stageFilter))
+    if (stageFilter) list = list.filter((c) => effStageIds(c).includes(stageFilter))
     if (search) {
       const q = search.toLowerCase()
       list = list.filter((c) => c.name.toLowerCase().includes(q))
@@ -45,8 +51,8 @@ export default function CompaniesTable({ companies, tags, userId }: Props) {
       let av = '', bv = ''
       if (sortKey === 'name') { av = a.name; bv = b.name }
       else if (sortKey === 'stage') {
-        av = a.stage_ids.map(id => tags.stages.find((t) => t.id === id)?.name ?? '').join(',')
-        bv = b.stage_ids.map(id => tags.stages.find((t) => t.id === id)?.name ?? '').join(',')
+        av = effStageIds(a).map(id => tags.stages.find((t) => t.id === id)?.name ?? '').join(',')
+        bv = effStageIds(b).map(id => tags.stages.find((t) => t.id === id)?.name ?? '').join(',')
       }
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
     })
@@ -148,10 +154,15 @@ export default function CompaniesTable({ companies, tags, userId }: Props) {
                 <td className="has-text-grey">
                   {c.type_id ? tags.types.find((t) => t.id === c.type_id)?.name : '—'}
                 </td>
-                <td className="has-text-grey">
-                  {c.stage_ids.length > 0
-                    ? c.stage_ids.map(id => tags.stages.find((t) => t.id === id)?.name).filter(Boolean).join(', ')
-                    : '—'}
+                <td>
+                  {effStageIds(c).length > 0 ? (
+                    <div className="tags">
+                      {effStageIds(c).map((id) => {
+                        const name = tags.stages.find((t) => t.id === id)?.name
+                        return name ? <Badge key={id} variant="yellow">{name}</Badge> : null
+                      })}
+                    </div>
+                  ) : <span className="has-text-grey">—</span>}
                 </td>
                 <td>
                   {c.status_id ? (

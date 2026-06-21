@@ -23,13 +23,31 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
 
   const { data: contacts } = await supabase
     .from('contacts')
-    .select('id, name, role, email')
+    .select('id, name, role, email, investment_focus, stage_ids')
     .eq('company_id', id)
     .is('deleted_at', null)
     .order('name')
 
+  // Manager → fund hierarchy
+  const [{ data: parent }, { data: funds }] = await Promise.all([
+    company.parent_company_id
+      ? supabase.from('companies').select('id, name').eq('id', company.parent_company_id).single()
+      : Promise.resolve({ data: null }),
+    supabase.from('companies').select('id, name').eq('parent_company_id', id).is('deleted_at', null).order('name'),
+  ])
+
   const tagName = (tagId: string | null, catalog: { id: string; name: string }[]) =>
     catalog.find((t) => t.id === tagId)?.name
+  const stageNames = (ids: string[] | null) =>
+    (ids ?? []).map((sid) => tags.stages.find((t) => t.id === sid)?.name).filter(Boolean)
+
+  // "Investment thesis" = the focus its contacts invest in, unioned across them.
+  const investmentThesis = Array.from(
+    new Set((contacts ?? []).flatMap((c) => (c.investment_focus ?? []) as string[]))
+  ).filter(Boolean)
+  const investmentStages = stageNames((company.investment_stage_ids ?? []) as string[])
+  const portfolioStages = stageNames((company.stage_ids ?? []) as string[])
+  const fmtMusd = (n: number | null) => (n == null ? null : `US$ ${n}M`)
 
   return (
     <div className="gg-detail">
@@ -60,14 +78,66 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             <span className="has-text-grey">Type: </span>
             <span>{tagName(company.type_id, tags.types) ?? '—'}</span>
           </div>
-          <div className="column is-half">
-            <span className="has-text-grey">Stage: </span>
-            <span>
-              {((company.stage_ids ?? []) as string[]).length > 0
-                ? ((company.stage_ids ?? []) as string[]).map(id => tags.stages.find(t => t.id === id)?.name).filter(Boolean).join(', ')
-                : '—'}
-            </span>
-          </div>
+          {investmentStages.length > 0 && (
+            <div className="column is-half">
+              <p className="has-text-grey mb-1">Invests in stages</p>
+              <div className="tags">
+                {investmentStages.map((n) => <Badge key={n} variant="yellow">{n}</Badge>)}
+              </div>
+            </div>
+          )}
+          {portfolioStages.length > 0 && (
+            <div className="column is-half">
+              <p className="has-text-grey mb-1">Stage</p>
+              <div className="tags">
+                {portfolioStages.map((n) => <Badge key={n} variant="yellow">{n}</Badge>)}
+              </div>
+            </div>
+          )}
+          {investmentThesis.length > 0 && (
+            <div className="column is-half">
+              <p className="has-text-grey mb-1">Investment focus</p>
+              <div className="tags">
+                {investmentThesis.map((n) => <Badge key={n} variant="blue">{n}</Badge>)}
+              </div>
+            </div>
+          )}
+          {company.website && (
+            <div className="column is-half">
+              <span className="has-text-grey">Website: </span>
+              <a href={company.website.startsWith('http') ? company.website : `https://${company.website}`} target="_blank" rel="noreferrer">{company.website}</a>
+            </div>
+          )}
+          {fmtMusd(company.round_size_musd) && (
+            <div className="column is-half">
+              <span className="has-text-grey">Round / fund size: </span>
+              <span>{fmtMusd(company.round_size_musd)}</span>
+            </div>
+          )}
+          {fmtMusd(company.valuation_musd) && (
+            <div className="column is-half">
+              <span className="has-text-grey">Valuation: </span>
+              <span>{fmtMusd(company.valuation_musd)}</span>
+            </div>
+          )}
+          {company.legal && (
+            <div className="column is-half">
+              <span className="has-text-grey">Legal: </span>
+              <span>{company.legal}</span>
+            </div>
+          )}
+          {company.deal_date && (
+            <div className="column is-half">
+              <span className="has-text-grey">Deal date: </span>
+              <span>{formatDate(company.deal_date)}</span>
+            </div>
+          )}
+          {parent && (
+            <div className="column is-half">
+              <span className="has-text-grey">Managed by: </span>
+              <Link href={`/companies/${parent.id}`}>{parent.name}</Link>
+            </div>
+          )}
           <div className="column is-half">
             <span className="has-text-grey">Status: </span>
             <span>{tagName(company.status_id, tags.statuses) ?? '—'}</span>
@@ -96,6 +166,28 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
               <Badge key={tagId} variant="green">
                 {tags.regions.find((t) => t.id === tagId)?.name}
               </Badge>
+            ))}
+          </div>
+        )}
+        {((company.files ?? []) as string[]).length > 0 && (
+          <div className="mt-3 is-size-7">
+            <span className="has-text-grey">Files: </span>
+            {(company.files as string[]).map((f, i) => (
+              <span key={i}>
+                {i > 0 && ', '}
+                <a href={f} target="_blank" rel="noreferrer">{f.split('/').pop() || f}</a>
+              </span>
+            ))}
+          </div>
+        )}
+        {(funds ?? []).length > 0 && (
+          <div className="mt-3 is-size-7">
+            <span className="has-text-grey">Funds: </span>
+            {(funds ?? []).map((f, i) => (
+              <span key={f.id}>
+                {i > 0 && ', '}
+                <Link href={`/companies/${f.id}`}>{f.name}</Link>
+              </span>
             ))}
           </div>
         )}
