@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { createClient } from '@/lib/supabase/server'
 import { getCompany } from '@/lib/actions/companies'
 import { getTagCatalogs } from '@/lib/actions/tags'
@@ -71,7 +73,9 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
 
       <div className="box mb-5">
         {company.description && (
-          <p className="mb-4">{company.description}</p>
+          <div className="content mb-4">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{company.description}</ReactMarkdown>
+          </div>
         )}
         <div className="columns is-multiline is-size-7">
           <div className="column is-half">

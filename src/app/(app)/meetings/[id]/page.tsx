@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { createClient } from '@/lib/supabase/server'
 import { getMeeting, getMeetingParticipants } from '@/lib/actions/meetings'
 import { formatDate } from '@/lib/utils'
@@ -73,7 +75,9 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
             {meeting.notes && (
               <div className="mt-3" style={{ borderTop: '1px solid #f5f5f5', paddingTop: '0.75rem' }}>
                 <p className="is-size-7 has-text-grey mb-2">Notes</p>
-                <p className="is-size-6" style={{ whiteSpace: 'pre-wrap' }}>{meeting.notes}</p>
+                <div className="content is-size-6">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{meeting.notes ?? ''}</ReactMarkdown>
+                </div>
               </div>
             )}
           </div>
