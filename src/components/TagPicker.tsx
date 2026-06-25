@@ -1,5 +1,6 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useId } from 'react'
+import { createPortal } from 'react-dom'
 import { findNearMatches } from '@/lib/utils'
 import type { TagItem } from '@/types'
 
@@ -24,15 +25,53 @@ export default function TagPicker({
   const [nearMatches, setNearMatches] = useState<string[]>([])
   const [creating, setCreating] = useState(false)
   const [open, setOpen] = useState(false)
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
   const ref = useRef<HTMLDivElement>(null)
+  const uid = useId()
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const portalEl = document.getElementById(uid)
+      if (
+        ref.current && !ref.current.contains(e.target as Node) &&
+        !(portalEl && portalEl.contains(e.target as Node))
+      ) {
+        setOpen(false)
+      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [])
+  }, [uid])
+
+  useEffect(() => {
+    if (!open) return
+    const reposition = () => {
+      if (!ref.current) return
+      const rect = ref.current.getBoundingClientRect()
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 2,
+        left: rect.left,
+        width: Math.max(rect.width, 240),
+        maxHeight: 260,
+        overflowY: 'auto',
+        zIndex: 9999,
+        background: '#fff',
+        border: '1px solid #dbdbdb',
+        borderRadius: 4,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+      })
+    }
+    reposition()
+    // Keep the fixed-position dropdown anchored to its input while the user
+    // scrolls (capture catches nested scroll containers like drawers) or resizes.
+    window.addEventListener('scroll', reposition, true)
+    window.addEventListener('resize', reposition)
+    return () => {
+      window.removeEventListener('scroll', reposition, true)
+      window.removeEventListener('resize', reposition)
+    }
+  }, [open])
 
   const filtered = catalog.filter(
     (t) =>
@@ -45,10 +84,14 @@ export default function TagPicker({
   const toggle = (id: string) => {
     if (!multi) {
       onChange(selected.includes(id) ? [] : [id])
+      setQuery('')
+      setNearMatches([])
       setOpen(false)
       return
     }
     onChange(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id])
+    setQuery('')
+    setNearMatches([])
   }
 
   const handleQueryChange = (val: string) => {
@@ -104,8 +147,8 @@ export default function TagPicker({
         )}
       </div>
 
-      {open && (
-        <div className="gg-tag-dropdown">
+      {typeof document !== 'undefined' && open && createPortal(
+        <div id={uid} style={dropdownStyle}>
           {nearMatches.length > 0 && (
             <div className="notification is-warning is-light p-2 m-2 is-size-7" style={{ borderRadius: 4 }}>
               Similar tags exist: {nearMatches.join(', ')}. Create anyway?
@@ -139,7 +182,8 @@ export default function TagPicker({
           {filtered.length === 0 && !query && (
             <p className="has-text-grey is-size-7 px-3 py-2">No tags yet</p>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

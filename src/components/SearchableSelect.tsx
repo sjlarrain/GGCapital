@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useId } from 'react'
 import { createPortal } from 'react-dom'
 
 export interface SelectOption {
@@ -30,6 +30,7 @@ export default function SearchableSelect({
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
   const ref = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const uid = useId()
 
   const selected = options.find((o) => o.id === value)
 
@@ -37,15 +38,14 @@ export default function SearchableSelect({
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        // Also check if click is inside the portal dropdown
-        const portal = document.getElementById('searchable-select-portal')
+        const portal = document.getElementById(uid)
         if (portal && portal.contains(e.target as Node)) return
         setOpen(false)
       }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [])
+  }, [uid])
 
   // Position and focus when opening
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function SearchableSelect({
   const triggerClass = `button is-light${isSmall ? ' is-small' : ''}`
 
   const dropdown = open ? (
-    <div id="searchable-select-portal" style={dropdownStyle}>
+    <div id={uid} style={dropdownStyle}>
       <div style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0f0' }}>
         <input
           ref={inputRef}
