@@ -29,9 +29,16 @@ interface Props {
   companies: CompanyRow[]
   tags: TagCatalogs
   userId: string
+  defaultView?: string
 }
 
-export default function CompaniesTable({ companies, tags, userId }: Props) {
+const VIEW_LABELS: Record<string, string> = {
+  companies: 'Companies',
+  funds: 'Funds',
+  investors: 'Investors',
+}
+
+export default function CompaniesTable({ companies, tags, userId, defaultView }: Props) {
   const router = useRouter()
 
   const [search, setSearch] = useState('')
@@ -41,7 +48,19 @@ export default function CompaniesTable({ companies, tags, userId }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const filtered = useMemo(() => {
+    // Compute type-based view filter
+    const companyTypeId = tags.types.find((t) => t.name === 'Company')?.id
+    const fundTypeIds = new Set(tags.types.filter((t) => ['VC', 'Fund'].includes(t.name)).map((t) => t.id))
+
     let list = companies
+    if (defaultView === 'companies') {
+      list = list.filter((c) => c.type_id === companyTypeId)
+    } else if (defaultView === 'funds') {
+      list = list.filter((c) => c.type_id != null && fundTypeIds.has(c.type_id))
+    } else if (defaultView === 'investors') {
+      list = list.filter((c) => !c.type_id || (!fundTypeIds.has(c.type_id) && c.type_id !== companyTypeId))
+    }
+
     if (stageFilter) list = list.filter((c) => effStageIds(c).includes(stageFilter))
     if (search) {
       const q = search.toLowerCase()
@@ -56,7 +75,7 @@ export default function CompaniesTable({ companies, tags, userId }: Props) {
       }
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
     })
-  }, [companies, search, sortKey, sortDir, stageFilter, tags])
+  }, [companies, search, sortKey, sortDir, stageFilter, tags, defaultView])
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -84,8 +103,8 @@ export default function CompaniesTable({ companies, tags, userId }: Props) {
       <div className="level mb-4">
         <div className="level-left">
           <div>
-            <h1 className="title is-4 mb-0">Companies</h1>
-            <p className="is-size-7 has-text-grey">{filtered.length} of {companies.length} records</p>
+            <h1 className="title is-4 mb-0">{defaultView ? VIEW_LABELS[defaultView] : 'All Companies'}</h1>
+            <p className="is-size-7 has-text-grey">{filtered.length} records</p>
           </div>
         </div>
         <div className="level-right" style={{ gap: 8, flexWrap: 'wrap' }}>

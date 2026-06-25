@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { UserProfile } from '@/types'
@@ -9,7 +9,9 @@ import FeedbackForm from './FeedbackForm'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: '⊞' },
-  { href: '/companies', label: 'Companies', icon: '🏢' },
+  { href: '/companies?view=companies', label: 'Companies', icon: '🏢' },
+  { href: '/companies?view=funds', label: 'Funds', icon: '💰' },
+  { href: '/companies?view=investors', label: 'Investors', icon: '📊' },
   { href: '/contacts', label: 'Contacts', icon: '👤' },
   { href: '/meetings', label: 'Meetings', icon: '📅' },
   { href: '/tags', label: 'Tags', icon: '🏷' },
@@ -27,10 +29,18 @@ interface SidebarProps {
 
 export default function Sidebar({ profile, onSignOut }: SidebarProps) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
 
-  const isActive = (href: string) =>
-    href === '/' ? pathname === '/' : pathname.startsWith(href)
+  const isActive = (href: string) => {
+    if (href === '/') return pathname === '/'
+    const [hrefPath, hrefQuery] = href.split('?')
+    if (hrefQuery) {
+      const params = new URLSearchParams(hrefQuery)
+      return pathname === hrefPath && [...params.entries()].every(([k, v]) => searchParams.get(k) === v)
+    }
+    return pathname.startsWith(hrefPath)
+  }
 
   return (
     <>

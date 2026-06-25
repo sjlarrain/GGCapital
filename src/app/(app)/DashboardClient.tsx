@@ -26,7 +26,7 @@ interface Props {
   stats: Stat[]
   followUps: FollowUp[]
   tags: TagCatalogs
-  companies: { id: string; name: string }[]
+  companies: { id: string; name: string; industry_ids: string[]; region_ids: string[]; stage_ids: string[] }[]
   contacts: { id: string; name: string; role: string | null }[]
   userId: string
 }
@@ -78,7 +78,7 @@ export default function DashboardClient({ stats, followUps, tags, companies, con
 
         <div className="columns is-multiline mb-6">
           {stats.map((s) => (
-            <div key={s.label} className="column is-half-tablet is-one-quarter-desktop">
+            <div key={s.label} className="column is-half-tablet is-one-third-desktop">
               <Link href={s.href} style={{ textDecoration: 'none' }}>
                 <div className="box has-text-centered" style={{ cursor: 'pointer' }}>
                   <div style={{ fontSize: '2rem', marginBottom: 8 }}>{s.icon}</div>

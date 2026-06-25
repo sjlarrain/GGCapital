@@ -3,7 +3,12 @@ import { getCompanies } from '@/lib/actions/companies'
 import { getTagCatalogs } from '@/lib/actions/tags'
 import CompaniesTable from './CompaniesTable'
 
-export default async function CompaniesPage() {
+export default async function CompaniesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>
+}) {
+  const { view } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -14,6 +19,7 @@ export default async function CompaniesPage() {
       companies={companies as Parameters<typeof CompaniesTable>[0]['companies']}
       tags={tags}
       userId={user!.id}
+      defaultView={view}
     />
   )
 }

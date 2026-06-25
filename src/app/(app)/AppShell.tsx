@@ -1,4 +1,5 @@
 'use client'
+import { Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import { createClient } from '@/lib/supabase/client'
@@ -22,7 +23,9 @@ export default function AppShell({
 
   return (
     <div className="gg-layout">
-      <Sidebar profile={profile} onSignOut={handleSignOut} />
+      <Suspense fallback={<aside className="gg-sidebar" />}>
+        <Sidebar profile={profile} onSignOut={handleSignOut} />
+      </Suspense>
       <main className="gg-main">{children}</main>
     </div>
   )
