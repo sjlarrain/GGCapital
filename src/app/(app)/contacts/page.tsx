@@ -21,7 +21,7 @@ export default async function ContactsPage() {
       contacts={contacts as Parameters<typeof ContactsTable>[0]['contacts']}
       followUpContactIds={followUps.map((f) => f.contact_id)}
       tags={tags}
-      companies={companies.map((c) => ({ id: c.id, name: c.name }))}
+      companies={companies.map((c) => ({ id: c.id, name: c.name, industry_ids: c.industry_ids ?? [], region_ids: c.region_ids ?? [], stage_ids: c.stage_ids ?? [] }))}
       userId={user!.id}
     />
   )

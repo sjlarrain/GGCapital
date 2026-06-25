@@ -9,17 +9,25 @@ import { createContact, updateContact, checkContactDuplicate } from '@/lib/actio
 import { createTag } from '@/lib/actions/tags'
 import type { Contact, TagCatalogs } from '@/types'
 
+type CompanyOption = {
+  id: string
+  name: string
+  industry_ids: string[]
+  region_ids: string[]
+  stage_ids: string[]
+}
+
 // Lazy import to avoid circular reference at module level
-let CompanyFormComponent: React.ComponentType<{
+type CompanyFormComponentType = React.ComponentType<{
   tags: TagCatalogs
   userId: string
-  onSuccess?: (newCompany?: { id: string; name: string }) => void
-}> | null = null
+  onSuccess?: (newCompany?: { id: string; name: string; industry_ids: string[]; region_ids: string[]; stage_ids: string[] }) => void
+}>
 
 interface ContactFormProps {
   contact?: Contact
   tags: TagCatalogs
-  companies: { id: string; name: string }[]
+  companies: CompanyOption[]
   userId: string
   defaultCompanyId?: string
   onSuccess?: () => void
@@ -33,19 +41,25 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
   const [phone, setPhone] = useState(contact?.phone ?? '')
   const [email, setEmail] = useState(contact?.email ?? '')
   const [expertise, setExpertise] = useState(contact?.expertise ?? '')
+  const [linkedin, setLinkedin] = useState(contact?.linkedin ?? '')
+  const [location, setLocation] = useState(contact?.location ?? '')
   const [companyId, setCompanyId] = useState(contact?.company_id ?? defaultCompanyId ?? '')
   const [investmentFocus, setInvestmentFocus] = useState<string[]>(contact?.investment_focus ?? [])
-  const [industryIds, setIndustryIds] = useState<string[]>(contact?.industry_ids ?? [])
-  const [regionIds, setRegionIds] = useState<string[]>(contact?.region_ids ?? [])
+  // For a new contact pre-filled with a company, seed tags from that company.
+  const seedCompany = !contact && defaultCompanyId ? companies.find((c) => c.id === defaultCompanyId) : undefined
+  const [industryIds, setIndustryIds] = useState<string[]>(contact?.industry_ids ?? seedCompany?.industry_ids ?? [])
+  const [regionIds, setRegionIds] = useState<string[]>(contact?.region_ids ?? seedCompany?.region_ids ?? [])
+  const [stageIds, setStageIds] = useState<string[]>(contact?.stage_ids ?? seedCompany?.stage_ids ?? [])
   const [tagState, setTagState] = useState(tags)
-  const [companyList, setCompanyList] = useState(companies)
+  const [companyList, setCompanyList] = useState<CompanyOption[]>(companies)
   const [duplicates, setDuplicates] = useState<{ id: string; name: string }[]>([])
   const [dupDismissed, setDupDismissed] = useState(false)
   const [newCompanyOpen, setNewCompanyOpen] = useState(false)
-  const [CompanyForm, setCompanyForm] = useState<typeof CompanyFormComponent>(null)
+  const [CompanyForm, setCompanyForm] = useState<CompanyFormComponentType | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // Duplicate check
   useEffect(() => {
     const check = async () => {
       if (name.trim().length < 2) { setDuplicates([]); return }
@@ -57,6 +71,21 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
     return () => clearTimeout(timer)
   }, [name, contact?.id])
 
+  // Inherit industry/region/stage from a company (only into empty fields, and
+  // never when editing an existing contact). Runs from the change handler rather
+  // than an effect so it only fires on an actual user selection.
+  const applyCompanyInheritance = (co: CompanyOption | undefined) => {
+    if (contact || !co) return
+    if (industryIds.length === 0 && co.industry_ids.length > 0) setIndustryIds(co.industry_ids)
+    if (regionIds.length === 0 && co.region_ids.length > 0) setRegionIds(co.region_ids)
+    if (stageIds.length === 0 && co.stage_ids.length > 0) setStageIds(co.stage_ids)
+  }
+
+  const handleCompanyChange = (id: string) => {
+    setCompanyId(id)
+    if (id) applyCompanyInheritance(companyList.find((c) => c.id === id))
+  }
+
   const openNewCompany = async () => {
     if (!CompanyForm) {
       const mod = await import('./CompanyForm')
@@ -65,12 +94,14 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
     setNewCompanyOpen(true)
   }
 
-  const handleCompanyCreated = (newCompany?: { id: string; name: string }) => {
+  const handleCompanyCreated = (newCompany?: { id: string; name: string; industry_ids: string[]; region_ids: string[]; stage_ids: string[] }) => {
     if (newCompany) {
       setCompanyList((prev) => [...prev, newCompany])
       setCompanyId(newCompany.id)
+      applyCompanyInheritance(newCompany)
     }
     setNewCompanyOpen(false)
+    router.refresh()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,9 +118,12 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
         phone: phone.trim() || null,
         email: email.trim() || null,
         expertise: expertise.trim() || null,
+        linkedin: linkedin.trim() || null,
+        location: location.trim() || null,
         company_id: companyId || null,
         industry_ids: industryIds,
         region_ids: regionIds,
+        stage_ids: stageIds,
         investment_focus: investmentFocus,
         updated_by: userId,
       }
@@ -176,10 +210,29 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
           </div>
         </div>
 
+        <div className="columns">
+          <div className="column">
+            <div className="field">
+              <label className="label">Expertise</label>
+              <div className="control">
+                <input className="input" value={expertise} onChange={(e) => setExpertise(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <div className="column">
+            <div className="field">
+              <label className="label">Location</label>
+              <div className="control">
+                <input className="input" placeholder="e.g. Sydney, Australia" value={location} onChange={(e) => setLocation(e.target.value)} />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="field">
-          <label className="label">Expertise</label>
+          <label className="label">LinkedIn</label>
           <div className="control">
-            <input className="input" value={expertise} onChange={(e) => setExpertise(e.target.value)} />
+            <input className="input" type="url" placeholder="https://linkedin.com/in/…" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} />
           </div>
         </div>
 
@@ -190,7 +243,7 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
               <Autocomplete
                 options={companyOptions}
                 value={companyId}
-                onChange={setCompanyId}
+                onChange={handleCompanyChange}
                 placeholder="Search companies…"
                 clearLabel="No company"
               />
@@ -227,6 +280,9 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
         </div>
         <div className="relative">
           <TagPicker label="Regions" catalog={tagState.regions} selected={regionIds} onChange={setRegionIds} onCreateTag={makeTagCreator('regions')} />
+        </div>
+        <div className="relative">
+          <TagPicker label="Stages" catalog={tagState.stages} selected={stageIds} onChange={setStageIds} onCreateTag={makeTagCreator('stages')} />
         </div>
 
         <div className="field mt-4">

@@ -3,27 +3,37 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Alert from '@/components/ui/Alert'
 import TagPicker from '@/components/TagPicker'
+import MarkdownEditor from '@/components/MarkdownEditor'
 import { createCompany, updateCompany, checkCompanyDuplicate } from '@/lib/actions/companies'
 import { createTag } from '@/lib/actions/tags'
+import { createClient } from '@/lib/supabase/client'
 import type { Company, TagCatalogs } from '@/types'
 
 interface CompanyFormProps {
   company?: Company
   tags: TagCatalogs
   userId: string
-  onSuccess?: (created?: { id: string; name: string }) => void
+  onSuccess?: (created?: { id: string; name: string; industry_ids: string[]; region_ids: string[]; stage_ids: string[] }) => void
 }
 
 export default function CompanyForm({ company, tags, userId, onSuccess }: CompanyFormProps) {
   const router = useRouter()
   const [name, setName] = useState(company?.name ?? '')
   const [description, setDescription] = useState(company?.description ?? '')
+  const [website, setWebsite] = useState(company?.website ?? '')
+  const [roundSize, setRoundSize] = useState(company?.round_size_musd?.toString() ?? '')
+  const [valuation, setValuation] = useState(company?.valuation_musd?.toString() ?? '')
+  const [legal, setLegal] = useState(company?.legal ?? '')
+  const [dealDate, setDealDate] = useState(company?.deal_date ?? '')
   const [source, setSource] = useState<'' | 'Direct' | 'Fund'>(company?.source ?? '')
   const [industryIds, setIndustryIds] = useState<string[]>(company?.industry_ids ?? [])
   const [regionIds, setRegionIds] = useState<string[]>(company?.region_ids ?? [])
   const [stageIds, setStageIds] = useState<string[]>(company?.stage_ids ?? [])
   const [typeId, setTypeId] = useState<string[]>(company?.type_id ? [company.type_id] : [])
   const [statusId, setStatusId] = useState<string[]>(company?.status_id ? [company.status_id] : [])
+  const [files, setFiles] = useState<string[]>((company?.files as string[]) ?? [])
+  const [fileUrl, setFileUrl] = useState('')
+  const [uploadingFile, setUploadingFile] = useState(false)
   const [tagState, setTagState] = useState(tags)
   const [duplicates, setDuplicates] = useState<{ id: string; name: string }[]>([])
   const [dupDismissed, setDupDismissed] = useState(false)
@@ -51,12 +61,18 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
       const payload = {
         name: name.trim(),
         description: description.trim() || null,
+        website: website.trim() || null,
+        round_size_musd: roundSize ? parseFloat(roundSize) : null,
+        valuation_musd: valuation ? parseFloat(valuation) : null,
+        legal: legal.trim() || null,
+        deal_date: dealDate || null,
         source: source || null,
         industry_ids: industryIds,
         region_ids: regionIds,
         stage_ids: stageIds,
         type_id: typeId[0] ?? null,
         status_id: statusId[0] ?? null,
+        files: files,
         updated_by: userId,
         deleted_at: null as string | null,
       }
@@ -67,7 +83,7 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
         else router.push(`/companies/${company.id}`)
       } else {
         const created = await createCompany({ ...payload, created_by: userId, deleted_at: null })
-        if (onSuccess) onSuccess({ id: created.id, name: created.name })
+        if (onSuccess) onSuccess({ id: created.id, name: created.name, industry_ids: industryIds, region_ids: regionIds, stage_ids: stageIds })
         else router.push(`/companies/${created.id}`)
       }
     } catch (err) {
@@ -81,6 +97,33 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
     const newTag = await createTag(catalog as Parameters<typeof createTag>[0], tagName)
     setTagState((prev) => ({ ...prev, [catalog]: [...prev[catalog], newTag] }))
     return newTag
+  }
+
+  const addFileUrl = () => {
+    const url = fileUrl.trim()
+    if (!url) return
+    setFiles((prev) => [...prev, url])
+    setFileUrl('')
+  }
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingFile(true)
+    setError('')
+    try {
+      const supabase = createClient()
+      const path = `${userId}/${Date.now()}-${file.name}`
+      const { error: uploadError } = await supabase.storage.from('company-files').upload(path, file)
+      if (uploadError) throw uploadError
+      const { data: { publicUrl } } = supabase.storage.from('company-files').getPublicUrl(path)
+      setFiles((prev) => [...prev, publicUrl])
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setUploadingFile(false)
+      e.target.value = ''
+    }
   }
 
   return (
@@ -105,8 +148,51 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
 
       <div className="field">
         <label className="label">Description</label>
+        <MarkdownEditor value={description} onChange={setDescription} rows={3} placeholder="Describe the company…" />
+      </div>
+
+      <div className="columns">
+        <div className="column">
+          <div className="field">
+            <label className="label">Website</label>
+            <div className="control">
+              <input className="input" type="url" placeholder="https://…" value={website} onChange={(e) => setWebsite(e.target.value)} />
+            </div>
+          </div>
+        </div>
+        <div className="column">
+          <div className="field">
+            <label className="label">Deal Date</label>
+            <div className="control">
+              <input className="input" type="date" value={dealDate} onChange={(e) => setDealDate(e.target.value)} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="columns">
+        <div className="column">
+          <div className="field">
+            <label className="label">Round / Fund Size (US$M)</label>
+            <div className="control">
+              <input className="input" type="number" step="0.1" min="0" placeholder="0.0" value={roundSize} onChange={(e) => setRoundSize(e.target.value)} />
+            </div>
+          </div>
+        </div>
+        <div className="column">
+          <div className="field">
+            <label className="label">Valuation (US$M)</label>
+            <div className="control">
+              <input className="input" type="number" step="0.1" min="0" placeholder="0.0" value={valuation} onChange={(e) => setValuation(e.target.value)} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="field">
+        <label className="label">Legal entity name</label>
         <div className="control">
-          <textarea className="textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+          <input className="input" value={legal} onChange={(e) => setLegal(e.target.value)} />
         </div>
       </div>
 
@@ -137,6 +223,53 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
       </div>
       <div className="relative">
         <TagPicker label="Status" catalog={tagState.statuses} selected={statusId} onChange={setStatusId} onCreateTag={makeTagCreator('statuses')} multi={false} />
+      </div>
+
+      {/* Files / Links */}
+      <div className="field">
+        <label className="label">Files / Links</label>
+        {files.length > 0 && (
+          <div className="mb-2">
+            {files.map((f, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <a href={f} target="_blank" rel="noreferrer" className="is-size-7 has-text-link" style={{ flex: 1, wordBreak: 'break-all' }}>
+                  {f.split('/').pop() || f}
+                </a>
+                <button
+                  type="button"
+                  className="delete is-small"
+                  onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            className="input is-small"
+            type="url"
+            placeholder="Paste a link (DocSend, Google Drive, etc.)"
+            value={fileUrl}
+            onChange={(e) => setFileUrl(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFileUrl() } }}
+            style={{ flex: 1 }}
+          />
+          <button type="button" className="button is-light is-small" onClick={addFileUrl}>
+            Add URL
+          </button>
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <label className="button is-light is-small" style={{ cursor: 'pointer' }}>
+            {uploadingFile ? 'Uploading…' : '↑ Upload PDF'}
+            <input
+              type="file"
+              accept="application/pdf"
+              style={{ display: 'none' }}
+              onChange={handlePdfUpload}
+              disabled={uploadingFile}
+            />
+          </label>
+        </div>
       </div>
 
       <div className="field mt-5">

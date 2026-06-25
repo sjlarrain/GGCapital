@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Alert from '@/components/ui/Alert'
 import Modal from '@/components/ui/Modal'
 import Autocomplete from '@/components/Autocomplete'
+import MarkdownEditor from '@/components/MarkdownEditor'
 import { createMeeting, updateMeeting, setMeetingParticipants } from '@/lib/actions/meetings'
 import type { Meeting, TagCatalogs } from '@/types'
 
@@ -11,18 +12,18 @@ import type { Meeting, TagCatalogs } from '@/types'
 type CompanyFormType = React.ComponentType<{
   tags: TagCatalogs
   userId: string
-  onSuccess?: (created?: { id: string; name: string }) => void
+  onSuccess?: (created?: { id: string; name: string; industry_ids: string[]; region_ids: string[]; stage_ids: string[] }) => void
 }>
 type ContactFormType = React.ComponentType<{
   tags: TagCatalogs
-  companies: { id: string; name: string }[]
+  companies: { id: string; name: string; industry_ids: string[]; region_ids: string[]; stage_ids: string[] }[]
   userId: string
   onSuccess?: () => void
 }>
 
 interface MeetingFormProps {
   meeting?: Meeting
-  companies: { id: string; name: string }[]
+  companies: { id: string; name: string; industry_ids: string[]; region_ids: string[]; stage_ids: string[] }[]
   contacts: { id: string; name: string; role: string | null }[]
   meetingTypes: { id: string; name: string }[]
   tags: TagCatalogs
@@ -52,8 +53,10 @@ export default function MeetingForm({
   const [companyId, setCompanyId] = useState(meeting?.company_id ?? defaultCompanyId ?? '')
   const [typeId, setTypeId] = useState(meeting?.type_id ?? defaultTypeId ?? '')
   const [participantIds, setParticipantIds] = useState<string[]>(initialParticipantIds)
-  const [companyList, setCompanyList] = useState(companies)
-  const [contactList, setContactList] = useState(contacts)
+  const [companyList, setCompanyList] = useState<{ id: string; name: string; industry_ids: string[]; region_ids: string[]; stage_ids: string[] }[]>(companies)
+  // Read contacts straight from props so a contact created inline (which triggers
+  // router.refresh()) shows up in the participant search without a remount.
+  const contactList = contacts
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -94,17 +97,24 @@ export default function MeetingForm({
     setNewContactOpen(true)
   }
 
-  const handleCompanyCreated = (created?: { id: string; name: string }) => {
+  const handleCompanyCreated = (created?: { id: string; name: string; industry_ids?: string[]; region_ids?: string[]; stage_ids?: string[] }) => {
     if (created) {
-      setCompanyList((prev) => [...prev, created])
+      setCompanyList((prev) => [...prev, {
+        id: created.id,
+        name: created.name,
+        industry_ids: created.industry_ids ?? [],
+        region_ids: created.region_ids ?? [],
+        stage_ids: created.stage_ids ?? [],
+      }])
       setCompanyId(created.id)
     }
     setNewCompanyOpen(false)
+    router.refresh()
   }
 
   const handleContactCreated = () => {
     setNewContactOpen(false)
-    // contacts list will refresh on page reload; optimistically no-op here
+    router.refresh()
   }
 
   const toggleParticipant = (id: string) => {
@@ -286,9 +296,7 @@ export default function MeetingForm({
 
         <div className="field">
           <label className="label">Notes</label>
-          <div className="control">
-            <textarea className="textarea" rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
+          <MarkdownEditor value={notes} onChange={setNotes} rows={4} placeholder="Meeting notes…" />
         </div>
 
         <div className="field mt-4">

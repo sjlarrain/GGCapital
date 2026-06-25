@@ -26,7 +26,7 @@ export default async function EditMeetingPage({ params }: { params: Promise<{ id
       <h1 className="title is-3 mb-5">Edit Meeting</h1>
       <MeetingForm
         meeting={meeting}
-        companies={companies.map((c) => ({ id: c.id, name: c.name }))}
+        companies={companies.map((c) => ({ id: c.id, name: c.name, industry_ids: c.industry_ids ?? [], region_ids: c.region_ids ?? [], stage_ids: c.stage_ids ?? [] }))}
         contacts={contacts.map((c) => ({ id: c.id, name: c.name, role: c.role }))}
         meetingTypes={tags.meetingTypes}
         tags={tags}

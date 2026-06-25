@@ -20,7 +20,7 @@ type SortKey = 'title' | 'date' | 'company'
 
 interface Props {
   meetings: MeetingRow[]
-  companies: { id: string; name: string }[]
+  companies: { id: string; name: string; industry_ids: string[]; region_ids: string[]; stage_ids: string[] }[]
   contacts: { id: string; name: string; role: string | null }[]
   meetingTypes: { id: string; name: string }[]
   tags: TagCatalogs

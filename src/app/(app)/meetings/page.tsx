@@ -23,7 +23,7 @@ export default async function MeetingsPage() {
   return (
     <MeetingsTable
       meetings={meetings as Parameters<typeof MeetingsTable>[0]['meetings']}
-      companies={companies.map((c) => ({ id: c.id, name: c.name }))}
+      companies={companies.map((c) => ({ id: c.id, name: c.name, industry_ids: c.industry_ids ?? [], region_ids: c.region_ids ?? [], stage_ids: c.stage_ids ?? [] }))}
       contacts={(contacts ?? []).map((c) => ({ id: c.id, name: c.name, role: c.role }))}
       meetingTypes={tags.meetingTypes}
       tags={tags}

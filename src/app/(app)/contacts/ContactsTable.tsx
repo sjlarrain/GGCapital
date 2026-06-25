@@ -21,7 +21,7 @@ interface Props {
   contacts: ContactRow[]
   followUpContactIds: string[]
   tags: TagCatalogs
-  companies: { id: string; name: string }[]
+  companies: { id: string; name: string; industry_ids: string[]; region_ids: string[]; stage_ids: string[] }[]
   userId: string
 }
 

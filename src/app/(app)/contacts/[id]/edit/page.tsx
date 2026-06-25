@@ -24,7 +24,7 @@ export default async function EditContactPage({ params }: { params: Promise<{ id
       <ContactForm
         contact={contact}
         tags={tags}
-        companies={companies.map((c) => ({ id: c.id, name: c.name }))}
+        companies={companies.map((c) => ({ id: c.id, name: c.name, industry_ids: c.industry_ids ?? [], region_ids: c.region_ids ?? [], stage_ids: c.stage_ids ?? [] }))}
         userId={user!.id}
       />
     </div>
