@@ -13,14 +13,19 @@ interface CompanyFormProps {
   company?: Company
   tags: TagCatalogs
   userId: string
+  mode?: 'company' | 'fund' | 'investor'
   onSuccess?: (created?: { id: string; name: string; industry_ids: string[]; region_ids: string[]; stage_ids: string[] }) => void
 }
 
-export default function CompanyForm({ company, tags, userId, onSuccess }: CompanyFormProps) {
+const FUND_STAGE_NAMES = ['Pre-Seed / Seed', 'Early Stage', 'Late Stage']
+
+export default function CompanyForm({ company, tags, userId, mode = 'company', onSuccess }: CompanyFormProps) {
+  const isFund = mode === 'fund'
   const router = useRouter()
   const [name, setName] = useState(company?.name ?? '')
   const [description, setDescription] = useState(company?.description ?? '')
   const [website, setWebsite] = useState(company?.website ?? '')
+  const [country, setCountry] = useState(company?.country ?? '')
   const [roundSize, setRoundSize] = useState(company?.round_size_musd?.toString() ?? '')
   const [valuation, setValuation] = useState(company?.valuation_musd?.toString() ?? '')
   const [legal, setLegal] = useState(company?.legal ?? '')
@@ -29,7 +34,14 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
   const [industryIds, setIndustryIds] = useState<string[]>(company?.industry_ids ?? [])
   const [regionIds, setRegionIds] = useState<string[]>(company?.region_ids ?? [])
   const [stageIds, setStageIds] = useState<string[]>(company?.stage_ids ?? [])
-  const [typeId, setTypeId] = useState<string[]>(company?.type_id ? [company.type_id] : [])
+  const [typeId, setTypeId] = useState<string[]>(() => {
+    if (company?.type_id) return [company.type_id]
+    if (isFund) {
+      const fundType = tags.types.find((t) => ['VC', 'Fund'].includes(t.name))
+      return fundType ? [fundType.id] : []
+    }
+    return []
+  })
   const [statusId, setStatusId] = useState<string[]>(company?.status_id ? [company.status_id] : [])
   const [files, setFiles] = useState<string[]>((company?.files as string[]) ?? [])
   const [fileUrl, setFileUrl] = useState('')
@@ -39,6 +51,13 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
   const [dupDismissed, setDupDismissed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const visibleStages = isFund
+    ? tagState.stages.filter((s) => FUND_STAGE_NAMES.includes(s.name) || stageIds.includes(s.id))
+    : tagState.stages
+  const visibleStatuses = isFund
+    ? tagState.statuses.filter((s) => s.name === 'Approved' || statusId.includes(s.id))
+    : tagState.statuses
 
   useEffect(() => {
     const check = async () => {
@@ -62,11 +81,12 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
         name: name.trim(),
         description: description.trim() || null,
         website: website.trim() || null,
-        round_size_musd: roundSize ? parseFloat(roundSize) : null,
-        valuation_musd: valuation ? parseFloat(valuation) : null,
-        legal: legal.trim() || null,
-        deal_date: dealDate || null,
-        source: source || null,
+        country: country.trim() || null,
+        round_size_musd: !isFund && roundSize ? parseFloat(roundSize) : null,
+        valuation_musd: !isFund && valuation ? parseFloat(valuation) : null,
+        legal: !isFund ? (legal.trim() || null) : null,
+        deal_date: !isFund ? (dealDate || null) : null,
+        source: !isFund ? (source || null) : null,
         industry_ids: industryIds,
         region_ids: regionIds,
         stage_ids: stageIds,
@@ -132,7 +152,13 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
 
       {duplicates.length > 0 && !dupDismissed && (
         <Alert type="warning" title="Possible duplicate" className="mb-4">
-          Similar company already exists: {duplicates.map((d) => d.name).join(', ')}.{' '}
+          Similar record already exists:{' '}
+          {duplicates.map((d, i) => (
+            <span key={d.id}>
+              {i > 0 && ', '}
+              <a href={`/companies/${d.id}`} target="_blank" rel="noreferrer">{d.name}</a>
+            </span>
+          ))}.{' '}
           <button type="button" className="button is-ghost is-small" onClick={() => setDupDismissed(true)}>
             Continue anyway
           </button>
@@ -140,15 +166,24 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
       )}
 
       <div className="field">
-        <label className="label">Company name *</label>
+        <label className="label">{isFund ? 'Fund Name *' : 'Company name *'}</label>
         <div className="control">
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
       </div>
 
+      {isFund && (
+        <div className="field">
+          <label className="label">Country of Origin</label>
+          <div className="control">
+            <input className="input" placeholder="e.g. Chile, USA, Canada" value={country} onChange={(e) => setCountry(e.target.value)} />
+          </div>
+        </div>
+      )}
+
       <div className="field">
         <label className="label">Description</label>
-        <MarkdownEditor value={description} onChange={setDescription} rows={3} placeholder="Describe the company…" />
+        <MarkdownEditor value={description} onChange={setDescription} rows={3} placeholder={isFund ? 'Describe the fund…' : 'Describe the company…'} />
       </div>
 
       <div className="columns">
@@ -160,69 +195,79 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
             </div>
           </div>
         </div>
-        <div className="column">
-          <div className="field">
-            <label className="label">Deal Date</label>
-            <div className="control">
-              <input className="input" type="date" value={dealDate} onChange={(e) => setDealDate(e.target.value)} />
+        {!isFund && (
+          <div className="column">
+            <div className="field">
+              <label className="label">Deal Date</label>
+              <div className="control">
+                <input className="input" type="date" value={dealDate} onChange={(e) => setDealDate(e.target.value)} />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {!isFund && (
+        <div className="columns">
+          <div className="column">
+            <div className="field">
+              <label className="label">Round / Fund Size (US$M)</label>
+              <div className="control">
+                <input className="input" type="number" step="0.1" min="0" placeholder="0.0" value={roundSize} onChange={(e) => setRoundSize(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <div className="column">
+            <div className="field">
+              <label className="label">Valuation (US$M)</label>
+              <div className="control">
+                <input className="input" type="number" step="0.1" min="0" placeholder="0.0" value={valuation} onChange={(e) => setValuation(e.target.value)} />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="columns">
-        <div className="column">
-          <div className="field">
-            <label className="label">Round / Fund Size (US$M)</label>
-            <div className="control">
-              <input className="input" type="number" step="0.1" min="0" placeholder="0.0" value={roundSize} onChange={(e) => setRoundSize(e.target.value)} />
+      {!isFund && (
+        <div className="field">
+          <label className="label">Legal entity name</label>
+          <div className="control">
+            <input className="input" value={legal} onChange={(e) => setLegal(e.target.value)} />
+          </div>
+        </div>
+      )}
+
+      {!isFund && (
+        <div className="field">
+          <label className="label">Source</label>
+          <div className="control">
+            <div className="select is-fullwidth">
+              <select value={source} onChange={(e) => setSource(e.target.value as '' | 'Direct' | 'Fund')}>
+                <option value="">—</option>
+                <option value="Direct">Direct</option>
+                <option value="Fund">Fund</option>
+              </select>
             </div>
           </div>
         </div>
-        <div className="column">
-          <div className="field">
-            <label className="label">Valuation (US$M)</label>
-            <div className="control">
-              <input className="input" type="number" step="0.1" min="0" placeholder="0.0" value={valuation} onChange={(e) => setValuation(e.target.value)} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="field">
-        <label className="label">Legal entity name</label>
-        <div className="control">
-          <input className="input" value={legal} onChange={(e) => setLegal(e.target.value)} />
-        </div>
-      </div>
-
-      <div className="field">
-        <label className="label">Source</label>
-        <div className="control">
-          <div className="select is-fullwidth">
-            <select value={source} onChange={(e) => setSource(e.target.value as '' | 'Direct' | 'Fund')}>
-              <option value="">—</option>
-              <option value="Direct">Direct</option>
-              <option value="Fund">Fund</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      )}
 
       <div className="relative">
-        <TagPicker label="Industries" catalog={tagState.industries} selected={industryIds} onChange={setIndustryIds} onCreateTag={makeTagCreator('industries')} />
+        <TagPicker label={isFund ? 'Thesis' : 'Industries'} catalog={tagState.industries} selected={industryIds} onChange={setIndustryIds} onCreateTag={makeTagCreator('industries')} />
       </div>
       <div className="relative">
-        <TagPicker label="Regions" catalog={tagState.regions} selected={regionIds} onChange={setRegionIds} onCreateTag={makeTagCreator('regions')} />
+        <TagPicker label={isFund ? 'Investment Geography' : 'Regions'} catalog={tagState.regions} selected={regionIds} onChange={setRegionIds} onCreateTag={makeTagCreator('regions')} />
+      </div>
+      {!isFund && (
+        <div className="relative">
+          <TagPicker label="Type" catalog={tagState.types} selected={typeId} onChange={setTypeId} onCreateTag={makeTagCreator('types')} multi={false} />
+        </div>
+      )}
+      <div className="relative">
+        <TagPicker label={isFund ? 'Investment Stage' : 'Stage'} catalog={visibleStages} selected={stageIds} onChange={setStageIds} onCreateTag={makeTagCreator('stages')} />
       </div>
       <div className="relative">
-        <TagPicker label="Type" catalog={tagState.types} selected={typeId} onChange={setTypeId} onCreateTag={makeTagCreator('types')} multi={false} />
-      </div>
-      <div className="relative">
-        <TagPicker label="Stage" catalog={tagState.stages} selected={stageIds} onChange={setStageIds} onCreateTag={makeTagCreator('stages')} />
-      </div>
-      <div className="relative">
-        <TagPicker label="Status" catalog={tagState.statuses} selected={statusId} onChange={setStatusId} onCreateTag={makeTagCreator('statuses')} multi={false} />
+        <TagPicker label="Status" catalog={visibleStatuses} selected={statusId} onChange={setStatusId} onCreateTag={makeTagCreator('statuses')} multi={false} />
       </div>
 
       {/* Files / Links */}
@@ -275,7 +320,10 @@ export default function CompanyForm({ company, tags, userId, onSuccess }: Compan
       <div className="field mt-5">
         <div className="buttons">
           <button type="submit" className="button is-primary" disabled={saving || (duplicates.length > 0 && !dupDismissed)}>
-            {saving ? 'Saving…' : company ? 'Update Company' : 'Create Company'}
+            {saving ? 'Saving…' : company
+            ? (isFund ? 'Update Fund' : 'Update Company')
+            : (isFund ? 'Create Fund' : 'Create Company')
+          }
           </button>
           <button type="button" className="button is-light" onClick={() => onSuccess ? onSuccess() : router.back()}>
             Cancel

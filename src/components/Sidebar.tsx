@@ -11,7 +11,7 @@ const navItems = [
   { href: '/', label: 'Dashboard', icon: '⊞' },
   { href: '/companies?view=companies', label: 'Companies', icon: '🏢' },
   { href: '/companies?view=funds', label: 'Funds', icon: '💰' },
-  { href: '/companies?view=investors', label: 'Investors', icon: '📊' },
+  { href: '/companies?view=investors', label: 'Investors & Network', icon: '📊' },
   { href: '/contacts', label: 'Contacts', icon: '👤' },
   { href: '/meetings', label: 'Meetings', icon: '📅' },
   { href: '/tags', label: 'Tags', icon: '🏷' },

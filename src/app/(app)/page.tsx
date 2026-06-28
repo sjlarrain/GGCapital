@@ -32,7 +32,7 @@ export default async function DashboardPage() {
   const stats = [
     { label: 'Companies', count: companiesCount, href: '/companies?view=companies', icon: '🏢' },
     { label: 'Funds', count: fundsCount, href: '/companies?view=funds', icon: '💰' },
-    { label: 'Investors', count: investorsCount, href: '/companies?view=investors', icon: '📊' },
+    { label: 'Investors & Network', count: investorsCount, href: '/companies?view=investors', icon: '📊' },
     { label: 'Contacts', count: contactCnt.count ?? 0, href: '/contacts', icon: '👤' },
     { label: 'Meetings', count: meetingCnt.count ?? 0, href: '/meetings', icon: '📅' },
     { label: 'Follow-ups due', count: followUps.length, href: '/contacts?filter=followup', icon: '🔔' },

@@ -16,6 +16,8 @@ type CompanyRow = {
   investment_stage_ids: string[] | null
   status_id: string | null
   industry_ids: string[] | null
+  website?: string | null
+  country?: string | null
 }
 
 // Funds invest across stages (investment_stage_ids); portfolio companies have a
@@ -35,7 +37,7 @@ interface Props {
 const VIEW_LABELS: Record<string, string> = {
   companies: 'Companies',
   funds: 'Funds',
-  investors: 'Investors',
+  investors: 'Investors & Network',
 }
 
 export default function CompaniesTable({ companies, tags, userId, defaultView }: Props) {
@@ -45,7 +47,19 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
   const [sortKey, setSortKey] = useState<SortKey>('name')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [stageFilter, setStageFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
+
+  const isFundsView = defaultView === 'funds'
+  const drawerTitle = isFundsView ? 'New Fund'
+    : defaultView === 'investors' ? 'New Investor & Network'
+    : 'New Company'
+  const newButtonLabel = isFundsView ? '+ New Fund'
+    : defaultView === 'investors' ? '+ New Investor & Network'
+    : '+ New Company'
+  const formMode: 'fund' | 'investor' | 'company' = isFundsView ? 'fund'
+    : defaultView === 'investors' ? 'investor'
+    : 'company'
 
   const filtered = useMemo(() => {
     // Compute type-based view filter
@@ -62,6 +76,7 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
     }
 
     if (stageFilter) list = list.filter((c) => effStageIds(c).includes(stageFilter))
+    if (statusFilter) list = list.filter((c) => c.status_id === statusFilter)
     if (search) {
       const q = search.toLowerCase()
       list = list.filter((c) => c.name.toLowerCase().includes(q))
@@ -75,7 +90,7 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
       }
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
     })
-  }, [companies, search, sortKey, sortDir, stageFilter, tags, defaultView])
+  }, [companies, search, sortKey, sortDir, stageFilter, statusFilter, tags, defaultView])
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -89,10 +104,11 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
 
   return (
     <>
-      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="New Company" side="right">
+      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title={drawerTitle} side="right">
         <CompanyForm
           tags={tags}
           userId={userId}
+          mode={formMode}
           onSuccess={() => {
             setDrawerOpen(false)
             router.refresh()
@@ -127,14 +143,24 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
               options={tags.stages.map((s) => ({ id: s.id, label: s.name }))}
               value={stageFilter}
               onChange={setStageFilter}
-              placeholder="All stages"
-              clearLabel="All stages"
+              placeholder={isFundsView ? 'All investment stages' : 'All stages'}
+              clearLabel={isFundsView ? 'All investment stages' : 'All stages'}
+              size="small"
+            />
+          </div>
+          <div className="level-item">
+            <SearchableSelect
+              options={tags.statuses.map((s) => ({ id: s.id, label: s.name }))}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              placeholder="All statuses"
+              clearLabel="All statuses"
               size="small"
             />
           </div>
           <div className="level-item">
             <button className="button is-primary is-small" onClick={() => setDrawerOpen(true)}>
-              + New Company
+              {newButtonLabel}
             </button>
           </div>
         </div>
@@ -147,19 +173,24 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
               <th className="is-sortable" onClick={() => toggleSort('name')}>
                 Name <SortIcon k="name" />
               </th>
-              <th>Type</th>
+              {isFundsView ? (
+                <th>Country</th>
+              ) : (
+                <th>Type</th>
+              )}
               <th className="is-sortable" onClick={() => toggleSort('stage')}>
-                Stage <SortIcon k="stage" />
+                {isFundsView ? 'Investment Stage' : 'Stage'} <SortIcon k="stage" />
               </th>
               <th>Status</th>
-              <th>Industries</th>
+              <th>{isFundsView ? 'Thesis' : 'Industries'}</th>
+              {isFundsView && <th>Website</th>}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="has-text-centered has-text-grey py-5">
-                  No companies found.
+                <td colSpan={isFundsView ? 6 : 5} className="has-text-centered has-text-grey py-5">
+                  No {isFundsView ? 'funds' : defaultView === 'investors' ? 'investors' : 'companies'} found.
                 </td>
               </tr>
             )}
@@ -170,9 +201,13 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
                     {c.name}
                   </Link>
                 </td>
-                <td className="has-text-grey">
-                  {c.type_id ? tags.types.find((t) => t.id === c.type_id)?.name : '—'}
-                </td>
+                {isFundsView ? (
+                  <td className="has-text-grey">{c.country ?? '—'}</td>
+                ) : (
+                  <td className="has-text-grey">
+                    {c.type_id ? tags.types.find((t) => t.id === c.type_id)?.name : '—'}
+                  </td>
+                )}
                 <td>
                   {effStageIds(c).length > 0 ? (
                     <div className="tags">
@@ -196,6 +231,15 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
                     })}
                   </div>
                 </td>
+                {isFundsView && (
+                  <td>
+                    {c.website ? (
+                      <a href={c.website.startsWith('http') ? c.website : `https://${c.website}`} target="_blank" rel="noreferrer" className="is-size-7 has-text-link">
+                        {c.website.replace(/^https?:\/\//, '')}
+                      </a>
+                    ) : <span className="has-text-grey">—</span>}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

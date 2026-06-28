@@ -44,6 +44,7 @@ export interface Company {
   legal?: string | null
   deal_date?: string | null
   files?: string[]
+  country?: string | null
   // Stages a fund invests in (rolled up from its contacts). Distinct from
   // `stage_ids`, which is a portfolio company's current round (migration 006).
   investment_stage_ids?: string[]

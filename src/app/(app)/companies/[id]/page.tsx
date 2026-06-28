@@ -23,6 +23,17 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
 
   if (!company) notFound()
 
+  const fundTypeIds = new Set(tags.types.filter((t) => ['VC', 'Fund'].includes(t.name)).map((t) => t.id))
+  const companyTypeId = tags.types.find((t) => t.name === 'Company')?.id
+  const returnView = company.type_id && fundTypeIds.has(company.type_id) ? 'funds'
+    : company.type_id === companyTypeId ? 'companies'
+    : 'investors'
+  const backHref = `/companies?view=${returnView}`
+  const backLabel = returnView === 'funds' ? '← Funds'
+    : returnView === 'companies' ? '← Companies'
+    : '← Investors & Network'
+  const isFund = returnView === 'funds'
+
   const { data: contacts } = await supabase
     .from('contacts')
     .select('id, name, role, email, investment_focus, stage_ids')
@@ -56,7 +67,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
       <div className="level mb-4">
         <div className="level-left">
           <div>
-            <Link href="/companies" className="is-size-7 has-text-grey">← Companies</Link>
+            <Link href={backHref} className="is-size-7 has-text-grey">{backLabel}</Link>
             <h1 className="title is-3 mt-1 mb-0">{company.name}</h1>
             {company.deleted_at && <Badge variant="red" className="mt-1">Deleted</Badge>}
           </div>
@@ -78,10 +89,18 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
           </div>
         )}
         <div className="columns is-multiline is-size-7">
-          <div className="column is-half">
-            <span className="has-text-grey">Type: </span>
-            <span>{tagName(company.type_id, tags.types) ?? '—'}</span>
-          </div>
+          {!isFund && (
+            <div className="column is-half">
+              <span className="has-text-grey">Type: </span>
+              <span>{tagName(company.type_id, tags.types) ?? '—'}</span>
+            </div>
+          )}
+          {isFund && (company as { country?: string | null }).country && (
+            <div className="column is-half">
+              <span className="has-text-grey">Country: </span>
+              <span>{(company as { country?: string | null }).country}</span>
+            </div>
+          )}
           {investmentStages.length > 0 && (
             <div className="column is-half">
               <p className="has-text-grey mb-1">Invests in stages</p>
@@ -156,21 +175,27 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
         {((company.industry_ids ?? []) as string[]).length > 0 && (
-          <div className="tags mt-2">
-            {(company.industry_ids as string[]).map((tagId: string) => (
-              <Badge key={tagId} variant="blue">
-                {tags.industries.find((t) => t.id === tagId)?.name}
-              </Badge>
-            ))}
+          <div className="mt-2">
+            <p className="has-text-grey is-size-7 mb-1">{isFund ? 'Thesis' : 'Industries'}</p>
+            <div className="tags">
+              {(company.industry_ids as string[]).map((tagId: string) => (
+                <Badge key={tagId} variant="blue">
+                  {tags.industries.find((t) => t.id === tagId)?.name}
+                </Badge>
+              ))}
+            </div>
           </div>
         )}
         {((company.region_ids ?? []) as string[]).length > 0 && (
-          <div className="tags">
-            {(company.region_ids as string[]).map((tagId: string) => (
-              <Badge key={tagId} variant="green">
-                {tags.regions.find((t) => t.id === tagId)?.name}
-              </Badge>
-            ))}
+          <div className="mt-2">
+            <p className="has-text-grey is-size-7 mb-1">{isFund ? 'Investment Geography' : 'Regions'}</p>
+            <div className="tags">
+              {(company.region_ids as string[]).map((tagId: string) => (
+                <Badge key={tagId} variant="green">
+                  {tags.regions.find((t) => t.id === tagId)?.name}
+                </Badge>
+              ))}
+            </div>
           </div>
         )}
         {((company.files ?? []) as string[]).length > 0 && (
