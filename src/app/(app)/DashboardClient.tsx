@@ -2,13 +2,14 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import Modal from '@/components/ui/Modal'
+import Drawer from '@/components/Drawer'
 import ContactForm from '@/components/forms/ContactForm'
 import CompanyForm from '@/components/forms/CompanyForm'
 import MeetingForm from '@/components/forms/MeetingForm'
 import type { TagCatalogs } from '@/types'
 
-type ActiveForm = 'company' | 'contact' | 'meeting' | null
+type OrgType = 'company' | 'fund' | 'investor'
+type QuickCreate = 'org' | 'contact' | 'meeting' | null
 
 interface Stat {
   label: string
@@ -31,34 +32,77 @@ interface Props {
   userId: string
 }
 
-const drawerTitle: Record<NonNullable<ActiveForm>, string> = {
-  company: 'New Company',
+const ORG_TABS: { type: OrgType; icon: string; label: string }[] = [
+  { type: 'company', icon: '🏢', label: 'Company' },
+  { type: 'fund',    icon: '💰', label: 'Fund' },
+  { type: 'investor',icon: '📊', label: 'Investor & Network' },
+]
+
+const drawerTitle: Record<NonNullable<QuickCreate>, string> = {
+  org:     'New Org',
   contact: 'New Contact',
   meeting: 'Log Meeting',
 }
 
 export default function DashboardClient({ stats, followUps, tags, companies, contacts, userId }: Props) {
   const router = useRouter()
-  const [activeForm, setActiveForm] = useState<ActiveForm>(null)
+  const [quickCreate, setQuickCreate] = useState<QuickCreate>(null)
+  const [orgType, setOrgType] = useState<OrgType | null>(null)
 
-  const close = () => setActiveForm(null)
-  const done = () => { close(); router.refresh() }
+  const close = () => { setQuickCreate(null); setOrgType(null) }
+  const done  = () => { close(); router.refresh() }
 
   return (
     <>
-      <Modal
-        open={activeForm !== null}
+      {/* Single right-side drawer for all quick-create flows */}
+      <Drawer
+        open={quickCreate !== null}
         onClose={close}
-        title={activeForm ? drawerTitle[activeForm] : ''}
-        wide
+        title={quickCreate ? drawerTitle[quickCreate] : ''}
+        side="right"
       >
-        {activeForm === 'company' && (
-          <CompanyForm tags={tags} userId={userId} onSuccess={done} />
+        {/* ── Org section ── */}
+        {quickCreate === 'org' && (
+          <div>
+            {/* Horizontal type selector — always visible, highlights active tab */}
+            <div className="buttons has-addons mb-5" style={{ width: '100%' }}>
+              {ORG_TABS.map(({ type, icon, label }) => (
+                <button
+                  key={type}
+                  className={`button is-small${orgType === type ? ' is-primary' : ''}`}
+                  style={{ flex: 1 }}
+                  onClick={() => setOrgType(type)}
+                >
+                  {icon} {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Prompt shown until a type is chosen */}
+            <div hidden={orgType !== null}>
+              <p className="has-text-grey is-size-7">Select a type above to get started.</p>
+            </div>
+
+            {/* All three forms in the DOM; hidden toggles which one is visible */}
+            <div hidden={orgType !== 'company'}>
+              <CompanyForm tags={tags} userId={userId} mode="company" onSuccess={done} />
+            </div>
+            <div hidden={orgType !== 'fund'}>
+              <CompanyForm tags={tags} userId={userId} mode="fund" onSuccess={done} />
+            </div>
+            <div hidden={orgType !== 'investor'}>
+              <CompanyForm tags={tags} userId={userId} mode="investor" onSuccess={done} />
+            </div>
+          </div>
         )}
-        {activeForm === 'contact' && (
+
+        {/* ── Contact section ── */}
+        {quickCreate === 'contact' && (
           <ContactForm tags={tags} companies={companies} userId={userId} onSuccess={done} />
         )}
-        {activeForm === 'meeting' && (
+
+        {/* ── Meeting section ── */}
+        {quickCreate === 'meeting' && (
           <MeetingForm
             companies={companies}
             contacts={contacts}
@@ -68,7 +112,7 @@ export default function DashboardClient({ stats, followUps, tags, companies, con
             onSuccess={done}
           />
         )}
-      </Modal>
+      </Drawer>
 
       <div>
         <div className="mb-6">
@@ -93,13 +137,22 @@ export default function DashboardClient({ stats, followUps, tags, companies, con
         <div className="mb-6">
           <p className="is-size-6 has-text-weight-semibold mb-3">Quick create</p>
           <div className="buttons">
-            <button className="button is-info is-light" onClick={() => setActiveForm('company')}>
-              🏢 New Company
+            <button
+              className="button is-info is-light"
+              onClick={() => { setOrgType(null); setQuickCreate('org') }}
+            >
+              🏢 New Org
             </button>
-            <button className="button is-primary is-light" onClick={() => setActiveForm('contact')}>
+            <button
+              className="button is-primary is-light"
+              onClick={() => setQuickCreate('contact')}
+            >
               👤 New Contact
             </button>
-            <button className="button is-success is-light" onClick={() => setActiveForm('meeting')}>
+            <button
+              className="button is-success is-light"
+              onClick={() => setQuickCreate('meeting')}
+            >
               📅 Log Meeting
             </button>
           </div>
