@@ -207,6 +207,56 @@ const spec = {
         },
       },
 
+      StagingStatus: {
+        type: 'string',
+        enum: ['pending', 'classified', 'needs_info', 'ready', 'promoted', 'rejected'],
+        description:
+          'Lifecycle: `pending` → `classified`/`needs_info`/`ready` (after classify) → `promoted`/`rejected` (terminal).',
+      },
+
+      EventClass: {
+        type: 'string',
+        enum: ['new_company', 'new_contact', 'meeting', 'interaction', 'update', 'unknown'],
+      },
+
+      StagingEvent: {
+        type: 'object',
+        required: ['id', 'source', 'raw_payload', 'status', 'blocking_reasons', 'created_by', 'created_at'],
+        properties: {
+          id:               { type: 'string', format: 'uuid' },
+          source:           { type: 'string', enum: ['manual', 'agent', 'import', 'email'] },
+          source_ref:       { type: 'string', nullable: true, description: 'Idempotency key — duplicates of (source, source_ref) do not create a second event.' },
+          raw_payload:      { type: 'object' },
+          extracted:        { type: 'object', nullable: true },
+          proposed_links:   { type: 'object', nullable: true, description: '{ company: {…|id}, contact: {…} } — read by promotion.' },
+          event_class:      { '$ref': '#/components/schemas/EventClass' },
+          confidence:       { type: 'number', minimum: 0, maximum: 1, nullable: true },
+          status:           { '$ref': '#/components/schemas/StagingStatus' },
+          blocking_reasons: { type: 'array', items: { type: 'string' } },
+          promoted_to:      { type: 'array', nullable: true, items: { type: 'object', properties: { table: { type: 'string' }, id: { type: 'string', format: 'uuid' } } } },
+          created_by:       { type: 'string', format: 'uuid' },
+          created_at:       { type: 'string', format: 'date-time' },
+          updated_at:       { type: 'string', format: 'date-time' },
+          reviewed_at:      { type: 'string', format: 'date-time', nullable: true },
+        },
+      },
+
+      StagingIngest: {
+        type: 'object',
+        required: ['source', 'raw_payload'],
+        description: 'Required: `source`, `raw_payload`. Provide `source_ref` for idempotency.',
+        properties: {
+          source:         { type: 'string', enum: ['manual', 'agent', 'import', 'email'] },
+          source_ref:     { type: 'string', nullable: true },
+          raw_payload:    { type: 'object' },
+          extracted:      { type: 'object', nullable: true },
+          proposed_links: { type: 'object', nullable: true },
+          event_class:    { '$ref': '#/components/schemas/EventClass' },
+          confidence:     { type: 'number', minimum: 0, maximum: 1, nullable: true },
+        },
+        additionalProperties: false,
+      },
+
       Error: {
         type: 'object',
         required: ['error'],
@@ -232,6 +282,10 @@ const spec = {
       },
       ValidationError: {
         description: 'Request body failed schema validation.',
+        content: { 'application/json': { schema: { '$ref': '#/components/schemas/Error' } } },
+      },
+      Conflict: {
+        description: 'Operation not allowed in the current state (e.g. promoting a non-ready event, or an agent promoting while auto-promote is off).',
         content: { 'application/json': { schema: { '$ref': '#/components/schemas/Error' } } },
       },
     },
@@ -593,6 +647,94 @@ const spec = {
         },
       },
     },
+
+    '/staging/events': {
+      get: {
+        summary: 'List the staging review queue',
+        operationId: 'listStagingEvents',
+        tags: ['Staging'],
+        security: [{ bearerAuth: ['staging:read'] }],
+        parameters: [
+          { name: 'status', in: 'query', schema: { '$ref': '#/components/schemas/StagingStatus' } },
+          { name: 'event_class', in: 'query', schema: { '$ref': '#/components/schemas/EventClass' } },
+          { name: 'min_confidence', in: 'query', schema: { type: 'number', minimum: 0, maximum: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 50, minimum: 1, maximum: 100 } },
+          { name: 'offset', in: 'query', schema: { type: 'integer', default: 0 } },
+        ],
+        responses: {
+          200: { description: 'Array of staging events.', content: { 'application/json': { schema: { type: 'array', items: { '$ref': '#/components/schemas/StagingEvent' } } } } },
+          401: { '$ref': '#/components/responses/Unauthorized' },
+          403: { '$ref': '#/components/responses/Forbidden' },
+        },
+      },
+      post: {
+        summary: 'Ingest a staging event (idempotent on source + source_ref)',
+        operationId: 'ingestStagingEvent',
+        tags: ['Staging'],
+        security: [{ bearerAuth: ['staging:write'] }],
+        requestBody: { required: true, content: { 'application/json': { schema: { '$ref': '#/components/schemas/StagingIngest' } } } },
+        responses: {
+          202: { description: 'Accepted (or existing event returned for a duplicate source_ref).', content: { 'application/json': { schema: { type: 'object', properties: { id: { type: 'string', format: 'uuid' }, status: { '$ref': '#/components/schemas/StagingStatus' } } } } } },
+          401: { '$ref': '#/components/responses/Unauthorized' },
+          403: { '$ref': '#/components/responses/Forbidden' },
+          422: { '$ref': '#/components/responses/ValidationError' },
+        },
+      },
+    },
+
+    '/staging/events/{id}/classify': {
+      post: {
+        summary: 'Run hard gates + confidence rules',
+        operationId: 'classifyStagingEvent',
+        description: 'Sets status to `needs_info` (gate failed), `classified` (confidence < 0.85), or `ready` (eligible for promotion). Logs the transition.',
+        tags: ['Staging'],
+        security: [{ bearerAuth: ['staging:write'] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          200: { description: 'Updated event.', content: { 'application/json': { schema: { '$ref': '#/components/schemas/StagingEvent' } } } },
+          401: { '$ref': '#/components/responses/Unauthorized' },
+          403: { '$ref': '#/components/responses/Forbidden' },
+          404: { '$ref': '#/components/responses/NotFound' },
+          409: { '$ref': '#/components/responses/Conflict' },
+        },
+      },
+    },
+
+    '/staging/events/{id}/promote': {
+      post: {
+        summary: 'Promote a ready event into the CRM (transactional)',
+        operationId: 'promoteStagingEvent',
+        description: 'Creates company + contact together (or neither). Blocks with 409 if status ≠ `ready`, or if an agent (PAT) promotes while the auto-promote flag is off. Logs the transition.',
+        tags: ['Staging'],
+        security: [{ bearerAuth: ['staging:promote'] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          200: { description: 'Promoted.', content: { 'application/json': { schema: { type: 'object', properties: { id: { type: 'string', format: 'uuid' }, status: { '$ref': '#/components/schemas/StagingStatus' }, promoted_to: { type: 'array', items: { type: 'object', properties: { table: { type: 'string' }, id: { type: 'string', format: 'uuid' } } } } } } } } },
+          401: { '$ref': '#/components/responses/Unauthorized' },
+          403: { '$ref': '#/components/responses/Forbidden' },
+          404: { '$ref': '#/components/responses/NotFound' },
+          409: { '$ref': '#/components/responses/Conflict' },
+        },
+      },
+    },
+
+    '/staging/events/{id}/reject': {
+      post: {
+        summary: 'Reject a staging event (terminal)',
+        operationId: 'rejectStagingEvent',
+        tags: ['Staging'],
+        security: [{ bearerAuth: ['staging:write'] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        requestBody: { required: false, content: { 'application/json': { schema: { type: 'object', properties: { note: { type: 'string' } } } } } },
+        responses: {
+          200: { description: 'Rejected.', content: { 'application/json': { schema: { '$ref': '#/components/schemas/StagingEvent' } } } },
+          401: { '$ref': '#/components/responses/Unauthorized' },
+          403: { '$ref': '#/components/responses/Forbidden' },
+          404: { '$ref': '#/components/responses/NotFound' },
+          409: { '$ref': '#/components/responses/Conflict' },
+        },
+      },
+    },
   },
 
   tags: [
@@ -602,6 +744,7 @@ const spec = {
     { name: 'Interactions', description: 'Interaction logs (calls, emails, notes).' },
     { name: 'Tags',         description: 'Tag catalogs: industries, regions, stages, types, statuses, meeting types.' },
     { name: 'Search',       description: 'Cross-entity search for deduplication.' },
+    { name: 'Staging',      description: 'Review queue for low-confidence / incomplete events before promotion into the CRM.' },
   ],
 }
 
