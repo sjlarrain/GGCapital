@@ -25,6 +25,12 @@ export async function inviteUser(email: string) {
   return { success: true }
 }
 
+export async function changePassword(newPassword: string) {
+  const supabase = await createClient()
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw new Error(error.message)
+}
+
 export async function getProfile() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -92,6 +92,10 @@ export default function Sidebar({ profile, onSignOut }: SidebarProps) {
               💬 Feedback
             </button>
             <span style={{ color: '#2d3748' }}>·</span>
+            <Link href="/settings" className="gg-feedback-btn" style={{ textDecoration: 'none' }}>
+              ⚙
+            </Link>
+            <span style={{ color: '#2d3748' }}>·</span>
             <button className="gg-feedback-btn" onClick={onSignOut}>
               Sign out
             </button>
