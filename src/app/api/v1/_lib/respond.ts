@@ -1,0 +1,11 @@
+export const ok          = (data: unknown, status = 200) => Response.json(data, { status })
+export const created     = (data: unknown)               => Response.json(data, { status: 201 })
+export const noContent   = ()                            => new Response(null, { status: 204 })
+export const err         = (message: string, status: number) => Response.json({ error: message }, { status })
+
+export const unauthorized = () => err('Unauthorized', 401)
+export const forbidden    = () => err('Forbidden', 403)
+export const notFound     = () => err('Not found', 404)
+export const badRequest   = (msg = 'Bad request') => err(msg, 400)
+export const conflict     = (msg = 'Conflict') => err(msg, 409)
+export const serverError  = (msg = 'Internal server error') => err(msg, 500)

@@ -1,5 +1,8 @@
 export type Role = 'admin' | 'user'
 
+// Added by migration 011 — computed by DB trigger on every insert/update.
+export type DataStatus = 'stub' | 'partial' | 'complete'
+
 export interface UserProfile {
   id: string
   email: string
@@ -48,6 +51,9 @@ export interface Company {
   // Stages a fund invests in (rolled up from its contacts). Distinct from
   // `stage_ids`, which is a portfolio company's current round (migration 006).
   investment_stage_ids?: string[]
+  // Added by migration 011 — computed by DB trigger.
+  data_status?:    DataStatus
+  missing_fields?: string[]
   created_by: string
   updated_by: string
   created_at: string
@@ -75,6 +81,9 @@ export interface Contact {
   linkedin?: string | null
   location?: string | null
   stage_ids?: string[]
+  // Added by migration 011 — computed by DB trigger.
+  data_status?:    DataStatus
+  missing_fields?: string[]
   created_by: string
   updated_by: string
   created_at: string
@@ -130,6 +139,19 @@ export interface Feedback {
   description: string
   created_by: string
   created_at: string
+}
+
+// ── API Tokens (migration 010) ────────────────────────────
+export interface ApiToken {
+  id:           string
+  user_id:      string
+  name:         string
+  token_hash:   string
+  scopes:       string[]
+  last_used_at: string | null
+  expires_at:   string | null
+  revoked_at:   string | null
+  created_at:   string
 }
 
 // ── Rich / Joined Views ───────────────────────────────────
