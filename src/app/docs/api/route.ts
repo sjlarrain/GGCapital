@@ -39,7 +39,7 @@ export function GET() {
   <script
     id="api-reference"
     data-url="/api/v1/openapi.json"
-    data-configuration=${JSON.stringify(config)}
+    data-configuration='${config}'
     src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"
   ></script>
 </body>
