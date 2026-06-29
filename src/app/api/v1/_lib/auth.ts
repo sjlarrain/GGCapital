@@ -8,6 +8,13 @@ export interface AuthContext {
   userId: string
   role: 'admin' | 'user'
   scopes: Scope[]
+  /** How the caller authenticated. PATs are treated as non-interactive "agents". */
+  authType: 'jwt' | 'pat'
+}
+
+/** A PAT caller is a server-to-server agent (vs. an interactive human on a JWT session). */
+export function isAgent(ctx: AuthContext): boolean {
+  return ctx.authType === 'pat'
 }
 
 const ROLE_SCOPES: Record<string, Scope[]> = {
@@ -46,7 +53,7 @@ async function verifyPAT(raw: string): Promise<AuthContext | null> {
     .single()
 
   const role = (profile?.role ?? 'user') as 'admin' | 'user'
-  return { userId: pat.user_id, role, scopes: pat.scopes as Scope[] }
+  return { userId: pat.user_id, role, scopes: pat.scopes as Scope[], authType: 'pat' }
 }
 
 async function verifyJWT(jwt: string): Promise<AuthContext | null> {
@@ -60,7 +67,7 @@ async function verifyJWT(jwt: string): Promise<AuthContext | null> {
     .single()
 
   const role = (profile?.role ?? 'user') as 'admin' | 'user'
-  return { userId: user.id, role, scopes: ROLE_SCOPES[role] }
+  return { userId: user.id, role, scopes: ROLE_SCOPES[role], authType: 'jwt' }
 }
 
 export function hasScope(ctx: AuthContext, scope: Scope): boolean {
