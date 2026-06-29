@@ -88,11 +88,11 @@ export default function Sidebar({ profile, onSignOut }: SidebarProps) {
           </p>
           <p style={{ color: '#4a5568', textTransform: 'capitalize', marginTop: 2 }}>{profile.role}</p>
           <div style={{ marginTop: 8, display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <button className="gg-feedback-btn" onClick={() => setFeedbackOpen(true)}>
-              💬 Feedback
+            <button className="gg-feedback-btn" onClick={() => setFeedbackOpen(true)} title="Feedback" style={{ fontSize: '1rem', lineHeight: 1 }}>
+              💬
             </button>
             <span style={{ color: '#2d3748' }}>·</span>
-            <Link href="/settings" className="gg-feedback-btn" style={{ textDecoration: 'none' }}>
+            <Link href="/settings" className="gg-feedback-btn" title="Settings" style={{ textDecoration: 'none', fontSize: '0.9rem', lineHeight: 1 }} aria-label="Settings">
               ⚙
             </Link>
             <span style={{ color: '#2d3748' }}>·</span>
