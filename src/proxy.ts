@@ -27,6 +27,13 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  // API routes authenticate themselves (Bearer JWT/PAT inside each handler), so
+  // the cookie-session redirect must not apply to them — otherwise PAT/agent
+  // callers with no session cookie get bounced to /login and never reach the API.
+  if (pathname.startsWith('/api')) {
+    return supabaseResponse
+  }
+
   // Redirect unauthenticated users to /login
   if (!user && pathname !== '/login') {
     return NextResponse.redirect(new URL('/login', request.url))
@@ -41,5 +48,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }
