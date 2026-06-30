@@ -17,6 +17,7 @@ type CompanyRow = {
   status_id: string | null
   industry_ids: string[] | null
   region_ids: string[] | null
+  round_size_musd?: number | null
   website?: string | null
   country?: string | null
 }
@@ -209,13 +210,14 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
                 Status <SortIcon k="status" />
               </th>
               {!isFundsView && <th>Industries</th>}
+              {isFundsView && <th>Fund Size</th>}
               {isFundsView && <th>Website</th>}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={isFundsView ? 7 : 5} className="has-text-centered has-text-grey py-5">
+                <td colSpan={isFundsView ? 8 : 5} className="has-text-centered has-text-grey py-5">
                   No {isFundsView ? 'funds' : defaultView === 'investors' ? 'investors' : 'companies'} found.
                 </td>
               </tr>
@@ -277,6 +279,11 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
                         return name ? <Badge key={id} variant="blue">{name}</Badge> : null
                       })}
                     </div>
+                  </td>
+                )}
+                {isFundsView && (
+                  <td className="has-text-grey is-size-7">
+                    {c.round_size_musd != null ? `US$ ${c.round_size_musd}M` : '—'}
                   </td>
                 )}
                 {isFundsView && (
