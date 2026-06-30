@@ -17,7 +17,7 @@ interface CompanyFormProps {
   onSuccess?: (created?: { id: string; name: string; industry_ids: string[]; region_ids: string[]; stage_ids: string[] }) => void
 }
 
-const FUND_STAGE_NAMES = ['Pre-Seed / Seed', 'Early Stage', 'Late Stage']
+const FUND_STAGE_NAMES = ['Pre-Seed & Seed', 'Early Stage', 'Late Stage']
 
 export default function CompanyForm({ company, tags, userId, mode = 'company', onSuccess }: CompanyFormProps) {
   const isFund = mode === 'fund'
@@ -33,7 +33,9 @@ export default function CompanyForm({ company, tags, userId, mode = 'company', o
   const [source, setSource] = useState<'' | 'Direct' | 'Fund'>(company?.source ?? '')
   const [industryIds, setIndustryIds] = useState<string[]>(company?.industry_ids ?? [])
   const [regionIds, setRegionIds] = useState<string[]>(company?.region_ids ?? [])
-  const [stageIds, setStageIds] = useState<string[]>(company?.stage_ids ?? [])
+  const [stageIds, setStageIds] = useState<string[]>(
+    isFund ? ((company?.investment_stage_ids ?? []) as string[]) : (company?.stage_ids ?? [])
+  )
   const [typeId, setTypeId] = useState<string[]>(() => {
     if (company?.type_id) return [company.type_id]
     if (isFund) {
@@ -55,8 +57,9 @@ export default function CompanyForm({ company, tags, userId, mode = 'company', o
   const visibleStages = isFund
     ? tagState.stages.filter((s) => FUND_STAGE_NAMES.includes(s.name) || stageIds.includes(s.id))
     : tagState.stages
+  const FUND_STATUS_NAMES = ['Approved', 'Rejected', 'Miss', 'Stand-by']
   const visibleStatuses = isFund
-    ? tagState.statuses.filter((s) => s.name === 'Approved' || statusId.includes(s.id))
+    ? tagState.statuses.filter((s) => FUND_STATUS_NAMES.includes(s.name) || statusId.includes(s.id))
     : tagState.statuses
 
   useEffect(() => {
@@ -82,14 +85,15 @@ export default function CompanyForm({ company, tags, userId, mode = 'company', o
         description: description.trim() || null,
         website: website.trim() || null,
         country: country.trim() || null,
-        round_size_musd: !isFund && roundSize ? parseFloat(roundSize) : null,
+        round_size_musd: roundSize ? parseFloat(roundSize) : null,
         valuation_musd: !isFund && valuation ? parseFloat(valuation) : null,
         legal: !isFund ? (legal.trim() || null) : null,
         deal_date: !isFund ? (dealDate || null) : null,
         source: !isFund ? (source || null) : null,
         industry_ids: industryIds,
         region_ids: regionIds,
-        stage_ids: stageIds,
+        stage_ids: isFund ? [] : stageIds,
+        investment_stage_ids: isFund ? stageIds : null,
         type_id: typeId[0] ?? null,
         status_id: statusId[0] ?? null,
         files: files,
@@ -207,7 +211,14 @@ export default function CompanyForm({ company, tags, userId, mode = 'company', o
         )}
       </div>
 
-      {!isFund && (
+      {isFund ? (
+        <div className="field">
+          <label className="label">Fund Size (US$M)</label>
+          <div className="control">
+            <input className="input" type="number" step="0.1" min="0" placeholder="0.0" value={roundSize} onChange={(e) => setRoundSize(e.target.value)} />
+          </div>
+        </div>
+      ) : (
         <div className="columns">
           <div className="column">
             <div className="field">

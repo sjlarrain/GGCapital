@@ -58,10 +58,11 @@ export async function updateTag(catalog: CatalogKey, id: string, name: string) {
 
 export async function deleteTag(catalog: CatalogKey, id: string) {
   const supabase = await createClient()
-  const { error } = await supabase
+  const { error, count } = await supabase
     .from(TABLES[catalog])
-    .delete()
+    .delete({ count: 'exact' })
     .eq('id', id)
   if (error) throw error
+  if (count === 0) throw new Error('Delete was blocked — tag may still be in use or permissions are missing.')
   revalidatePath('/tags')
 }

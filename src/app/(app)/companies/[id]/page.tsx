@@ -84,7 +84,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
 
       <div className="box mb-5">
         {company.description && (
-          <div className="content mb-4">
+          <div className="content mb-4" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{company.description}</ReactMarkdown>
           </div>
         )}
@@ -103,13 +103,13 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
           )}
           {investmentStages.length > 0 && (
             <div className="column is-half">
-              <p className="has-text-grey mb-1">Invests in stages</p>
+              <p className="has-text-grey mb-1">{isFund ? 'Investment Stage' : 'Invests in stages'}</p>
               <div className="tags">
                 {investmentStages.map((n) => <Badge key={n} variant="yellow">{n}</Badge>)}
               </div>
             </div>
           )}
-          {portfolioStages.length > 0 && (
+          {!isFund && portfolioStages.length > 0 && (
             <div className="column is-half">
               <p className="has-text-grey mb-1">Stage</p>
               <div className="tags">
@@ -117,7 +117,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
               </div>
             </div>
           )}
-          {investmentThesis.length > 0 && (
+          {!isFund && investmentThesis.length > 0 && (
             <div className="column is-half">
               <p className="has-text-grey mb-1">Investment focus</p>
               <div className="tags">
@@ -165,10 +165,12 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             <span className="has-text-grey">Status: </span>
             <span>{tagName(company.status_id, tags.statuses) ?? '—'}</span>
           </div>
-          <div className="column is-half">
-            <span className="has-text-grey">Source: </span>
-            <span>{company.source ?? '—'}</span>
-          </div>
+          {!isFund && (
+            <div className="column is-half">
+              <span className="has-text-grey">Source: </span>
+              <span>{company.source ?? '—'}</span>
+            </div>
+          )}
           <div className="column is-half">
             <span className="has-text-grey">Created: </span>
             <span>{formatDate(company.created_at)}</span>

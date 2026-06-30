@@ -16,6 +16,7 @@ type CompanyRow = {
   investment_stage_ids: string[] | null
   status_id: string | null
   industry_ids: string[] | null
+  region_ids: string[] | null
   website?: string | null
   country?: string | null
 }
@@ -25,7 +26,7 @@ type CompanyRow = {
 const effStageIds = (c: CompanyRow): string[] =>
   c.investment_stage_ids?.length ? c.investment_stage_ids : c.stage_ids
 
-type SortKey = 'name' | 'stage'
+type SortKey = 'name' | 'stage' | 'country' | 'status'
 
 interface Props {
   companies: CompanyRow[]
@@ -48,6 +49,7 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [stageFilter, setStageFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [regionFilter, setRegionFilter] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const isFundsView = defaultView === 'funds'
@@ -77,6 +79,7 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
 
     if (stageFilter) list = list.filter((c) => effStageIds(c).includes(stageFilter))
     if (statusFilter) list = list.filter((c) => c.status_id === statusFilter)
+    if (regionFilter) list = list.filter((c) => (c.region_ids ?? []).includes(regionFilter))
     if (search) {
       const q = search.toLowerCase()
       list = list.filter((c) => c.name.toLowerCase().includes(q))
@@ -87,6 +90,11 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
       else if (sortKey === 'stage') {
         av = effStageIds(a).map(id => tags.stages.find((t) => t.id === id)?.name ?? '').join(',')
         bv = effStageIds(b).map(id => tags.stages.find((t) => t.id === id)?.name ?? '').join(',')
+      } else if (sortKey === 'country') {
+        av = a.country ?? ''; bv = b.country ?? ''
+      } else if (sortKey === 'status') {
+        av = tags.statuses.find((t) => t.id === a.status_id)?.name ?? ''
+        bv = tags.statuses.find((t) => t.id === b.status_id)?.name ?? ''
       }
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
     })
@@ -148,6 +156,18 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
               size="small"
             />
           </div>
+          {isFundsView && (
+            <div className="level-item">
+              <SearchableSelect
+                options={tags.regions.map((s) => ({ id: s.id, label: s.name }))}
+                value={regionFilter}
+                onChange={setRegionFilter}
+                placeholder="All geographies"
+                clearLabel="All geographies"
+                size="small"
+              />
+            </div>
+          )}
           <div className="level-item">
             <SearchableSelect
               options={tags.statuses.map((s) => ({ id: s.id, label: s.name }))}
@@ -174,22 +194,28 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
                 Name <SortIcon k="name" />
               </th>
               {isFundsView ? (
-                <th>Country</th>
+                <th className="is-sortable" onClick={() => toggleSort('country')}>
+                  Country <SortIcon k="country" />
+                </th>
               ) : (
                 <th>Type</th>
               )}
+              {isFundsView && <th>{isFundsView ? 'Thesis' : 'Industries'}</th>}
               <th className="is-sortable" onClick={() => toggleSort('stage')}>
                 {isFundsView ? 'Investment Stage' : 'Stage'} <SortIcon k="stage" />
               </th>
-              <th>Status</th>
-              <th>{isFundsView ? 'Thesis' : 'Industries'}</th>
+              {isFundsView && <th>Investment Geography</th>}
+              <th className="is-sortable" onClick={() => toggleSort('status')}>
+                Status <SortIcon k="status" />
+              </th>
+              {!isFundsView && <th>Industries</th>}
               {isFundsView && <th>Website</th>}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={isFundsView ? 6 : 5} className="has-text-centered has-text-grey py-5">
+                <td colSpan={isFundsView ? 7 : 5} className="has-text-centered has-text-grey py-5">
                   No {isFundsView ? 'funds' : defaultView === 'investors' ? 'investors' : 'companies'} found.
                 </td>
               </tr>
@@ -208,6 +234,16 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
                     {c.type_id ? tags.types.find((t) => t.id === c.type_id)?.name : '—'}
                   </td>
                 )}
+                {isFundsView && (
+                  <td>
+                    <div className="tags">
+                      {(c.industry_ids ?? []).map((id) => {
+                        const name = tags.industries.find((t) => t.id === id)?.name
+                        return name ? <Badge key={id} variant="blue">{name}</Badge> : null
+                      })}
+                    </div>
+                  </td>
+                )}
                 <td>
                   {effStageIds(c).length > 0 ? (
                     <div className="tags">
@@ -218,19 +254,31 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
                     </div>
                   ) : <span className="has-text-grey">—</span>}
                 </td>
+                {isFundsView && (
+                  <td>
+                    <div className="tags">
+                      {(c.region_ids ?? []).map((id) => {
+                        const name = tags.regions.find((t) => t.id === id)?.name
+                        return name ? <Badge key={id} variant="green">{name}</Badge> : null
+                      })}
+                    </div>
+                  </td>
+                )}
                 <td>
                   {c.status_id ? (
                     <Badge>{tags.statuses.find((t) => t.id === c.status_id)?.name ?? '—'}</Badge>
                   ) : '—'}
                 </td>
-                <td>
-                  <div className="tags">
-                    {(c.industry_ids ?? []).map((id) => {
-                      const name = tags.industries.find((t) => t.id === id)?.name
-                      return name ? <Badge key={id} variant="blue">{name}</Badge> : null
-                    })}
-                  </div>
-                </td>
+                {!isFundsView && (
+                  <td>
+                    <div className="tags">
+                      {(c.industry_ids ?? []).map((id) => {
+                        const name = tags.industries.find((t) => t.id === id)?.name
+                        return name ? <Badge key={id} variant="blue">{name}</Badge> : null
+                      })}
+                    </div>
+                  </td>
+                )}
                 {isFundsView && (
                   <td>
                     {c.website ? (

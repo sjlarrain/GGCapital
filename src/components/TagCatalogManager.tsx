@@ -20,6 +20,7 @@ export default function TagCatalogManager({ catalog, label, items: initial }: Pr
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [loading, setLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const handleNewNameChange = (val: string) => {
     setNewName(val)
@@ -51,13 +52,24 @@ export default function TagCatalogManager({ catalog, label, items: initial }: Pr
   }
 
   const handleDelete = async (id: string) => {
-    await deleteTag(catalog, id)
-    setItems((prev) => prev.filter((t) => t.id !== id))
+    setDeleteError('')
+    try {
+      await deleteTag(catalog, id)
+      setItems((prev) => prev.filter((t) => t.id !== id))
+    } catch (err) {
+      setDeleteError(String(err))
+    }
   }
 
   return (
     <div className="box">
       <p className="is-size-6 has-text-weight-semibold mb-3">{label}</p>
+
+      {deleteError && (
+        <Alert type="error" className="mb-2">
+          <span className="is-size-7">Could not delete tag: {deleteError}</span>
+        </Alert>
+      )}
 
       <div style={{ maxHeight: 220, overflowY: 'auto', marginBottom: '1rem' }}>
         {items.length === 0 && (
