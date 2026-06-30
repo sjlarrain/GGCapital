@@ -22,7 +22,7 @@ export default async function TagsPage() {
           <TagCatalogManager catalog="stages" label="Investment Stage" items={tags.stages} />
         </div>
         <div className="column is-half">
-          <TagCatalogManager catalog="types" label="Types" items={tags.types} />
+          <TagCatalogManager catalog="types" label="Types" items={tags.types} protectedNames={['VC', 'Fund', 'Company']} />
         </div>
         <div className="column is-half">
           <TagCatalogManager catalog="statuses" label="Status" items={tags.statuses} />

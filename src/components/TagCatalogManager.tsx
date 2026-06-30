@@ -11,9 +11,10 @@ interface Props {
   catalog: CatalogKey
   label: string
   items: TagItem[]
+  protectedNames?: string[]
 }
 
-export default function TagCatalogManager({ catalog, label, items: initial }: Props) {
+export default function TagCatalogManager({ catalog, label, items: initial, protectedNames = [] }: Props) {
   const [items, setItems] = useState(initial)
   const [newName, setNewName] = useState('')
   const [nearMatches, setNearMatches] = useState<string[]>([])
@@ -114,12 +115,16 @@ export default function TagCatalogManager({ catalog, label, items: initial }: Pr
                     >
                       Edit
                     </button>
-                    <button
-                      className="button is-ghost is-small has-text-danger"
-                      onClick={() => handleDelete(t.id)}
-                    >
-                      ×
-                    </button>
+                    {protectedNames.includes(t.name) ? (
+                      <span title="This tag is required by the app and cannot be deleted" style={{ fontSize: '0.75rem', color: '#aaa', padding: '0 4px', userSelect: 'none' }}>🔒</span>
+                    ) : (
+                      <button
+                        className="button is-ghost is-small has-text-danger"
+                        onClick={() => handleDelete(t.id)}
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
                 </div>
               </>

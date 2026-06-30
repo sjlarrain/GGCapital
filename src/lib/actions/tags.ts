@@ -56,8 +56,20 @@ export async function updateTag(catalog: CatalogKey, id: string, name: string) {
   revalidatePath('/tags')
 }
 
+const PROTECTED_TAGS: Partial<Record<CatalogKey, string[]>> = {
+  types: ['VC', 'Fund', 'Company'],
+}
+
 export async function deleteTag(catalog: CatalogKey, id: string) {
   const supabase = await createClient()
+
+  if (PROTECTED_TAGS[catalog]) {
+    const { data } = await supabase.from(TABLES[catalog]).select('name').eq('id', id).single()
+    if (data && PROTECTED_TAGS[catalog]!.includes(data.name)) {
+      throw new Error(`"${data.name}" is required by the app and cannot be deleted.`)
+    }
+  }
+
   const { error, count } = await supabase
     .from(TABLES[catalog])
     .delete({ count: 'exact' })

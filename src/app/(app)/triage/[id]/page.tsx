@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import { getStagingEvent, getStagingEventLog } from '@/lib/actions/staging'
 import TriageDetail from './TriageDetail'
 
@@ -9,6 +10,12 @@ export default async function TriageDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) notFound()
+  const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') notFound()
+
   const { id } = await params
 
   let event, log
