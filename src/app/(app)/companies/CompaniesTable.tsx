@@ -29,6 +29,8 @@ const effStageIds = (c: CompanyRow): string[] =>
 
 type SortKey = 'name' | 'stage' | 'country' | 'status'
 
+const FUND_STAGE_NAMES = ['Pre-Seed & Seed', 'Early Stage', 'Late Stage']
+
 interface Props {
   companies: CompanyRow[]
   tags: TagCatalogs
@@ -149,7 +151,10 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
           </div>
           <div className="level-item">
             <SearchableSelect
-              options={tags.stages.map((s) => ({ id: s.id, label: s.name }))}
+              options={(isFundsView
+                ? tags.stages.filter((s) => FUND_STAGE_NAMES.includes(s.name))
+                : tags.stages
+              ).map((s) => ({ id: s.id, label: s.name }))}
               value={stageFilter}
               onChange={setStageFilter}
               placeholder={isFundsView ? 'All investment stages' : 'All stages'}
@@ -201,7 +206,8 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
               ) : (
                 <th>Type</th>
               )}
-              {isFundsView && <th>{isFundsView ? 'Thesis' : 'Industries'}</th>}
+              {isFundsView && <th>Thesis</th>}
+              {isFundsView && <th>Fund Size</th>}
               <th className="is-sortable" onClick={() => toggleSort('stage')}>
                 {isFundsView ? 'Investment Stage' : 'Stage'} <SortIcon k="stage" />
               </th>
@@ -210,7 +216,6 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
                 Status <SortIcon k="status" />
               </th>
               {!isFundsView && <th>Industries</th>}
-              {isFundsView && <th>Fund Size</th>}
               {isFundsView && <th>Website</th>}
             </tr>
           </thead>
@@ -246,6 +251,11 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
                     </div>
                   </td>
                 )}
+                {isFundsView && (
+                  <td className="has-text-grey is-size-7">
+                    {c.round_size_musd != null ? `US$ ${c.round_size_musd}M` : '—'}
+                  </td>
+                )}
                 <td>
                   {effStageIds(c).length > 0 ? (
                     <div className="tags">
@@ -279,11 +289,6 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
                         return name ? <Badge key={id} variant="blue">{name}</Badge> : null
                       })}
                     </div>
-                  </td>
-                )}
-                {isFundsView && (
-                  <td className="has-text-grey is-size-7">
-                    {c.round_size_musd != null ? `US$ ${c.round_size_musd}M` : '—'}
                   </td>
                 )}
                 {isFundsView && (
