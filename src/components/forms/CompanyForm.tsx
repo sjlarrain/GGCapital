@@ -33,9 +33,7 @@ export default function CompanyForm({ company, tags, userId, mode = 'company', o
   const [source, setSource] = useState<'' | 'Direct' | 'Fund'>(company?.source ?? '')
   const [industryIds, setIndustryIds] = useState<string[]>(company?.industry_ids ?? [])
   const [regionIds, setRegionIds] = useState<string[]>(company?.region_ids ?? [])
-  const [stageIds, setStageIds] = useState<string[]>(
-    isFund ? ((company?.investment_stage_ids ?? []) as string[]) : (company?.stage_ids ?? [])
-  )
+  const [stageIds, setStageIds] = useState<string[]>(company?.stage_ids ?? [])
   const [typeId, setTypeId] = useState<string[]>(() => {
     if (company?.type_id) return [company.type_id]
     if (isFund) {
@@ -92,8 +90,7 @@ export default function CompanyForm({ company, tags, userId, mode = 'company', o
         source: !isFund ? (source || null) : null,
         industry_ids: industryIds,
         region_ids: regionIds,
-        stage_ids: isFund ? [] : stageIds,
-        investment_stage_ids: isFund ? stageIds : null,
+        stage_ids: stageIds,
         type_id: typeId[0] ?? null,
         status_id: statusId[0] ?? null,
         files: files,

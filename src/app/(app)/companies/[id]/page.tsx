@@ -58,8 +58,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
   const investmentThesis = Array.from(
     new Set((contacts ?? []).flatMap((c) => (c.investment_focus ?? []) as string[]))
   ).filter(Boolean)
-  const investmentStages = stageNames((company.investment_stage_ids ?? []) as string[])
-  const portfolioStages = stageNames((company.stage_ids ?? []) as string[])
+  const companyStages = stageNames((company.stage_ids ?? []) as string[])
   const fmtMusd = (n: number | null) => (n == null ? null : `US$ ${n}M`)
 
   return (
@@ -101,19 +100,11 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
               <span>{(company as { country?: string | null }).country}</span>
             </div>
           )}
-          {investmentStages.length > 0 && (
+          {companyStages.length > 0 && (
             <div className="column is-half">
-              <p className="has-text-grey mb-1">{isFund ? 'Investment Stage' : 'Invests in stages'}</p>
+              <p className="has-text-grey mb-1">{isFund ? 'Investment Stage' : 'Stage'}</p>
               <div className="tags">
-                {investmentStages.map((n) => <Badge key={n} variant="yellow">{n}</Badge>)}
-              </div>
-            </div>
-          )}
-          {!isFund && portfolioStages.length > 0 && (
-            <div className="column is-half">
-              <p className="has-text-grey mb-1">Stage</p>
-              <div className="tags">
-                {portfolioStages.map((n) => <Badge key={n} variant="yellow">{n}</Badge>)}
+                {companyStages.map((n) => <Badge key={n} variant="yellow">{n}</Badge>)}
               </div>
             </div>
           )}

@@ -13,7 +13,6 @@ type CompanyRow = {
   name: string
   type_id: string | null
   stage_ids: string[]
-  investment_stage_ids: string[] | null
   status_id: string | null
   industry_ids: string[] | null
   region_ids: string[] | null
@@ -22,10 +21,7 @@ type CompanyRow = {
   country?: string | null
 }
 
-// Funds invest across stages (investment_stage_ids); portfolio companies have a
-// current round (stage_ids). Show a fund's investment stages when present.
-const effStageIds = (c: CompanyRow): string[] =>
-  c.investment_stage_ids?.length ? c.investment_stage_ids : c.stage_ids
+const effStageIds = (c: CompanyRow): string[] => c.stage_ids
 
 type SortKey = 'name' | 'stage' | 'country' | 'status'
 
