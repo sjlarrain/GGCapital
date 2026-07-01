@@ -6,25 +6,39 @@ import { createClient } from '@/lib/supabase/server'
 import { getCompany } from '@/lib/actions/companies'
 import { getTagCatalogs } from '@/lib/actions/tags'
 import { getCompanyMeetings } from '@/lib/actions/meetings'
-import { getNotes } from '@/lib/actions/notes'
+import { getInteractionLogs } from '@/lib/actions/interactions'
 import { formatDate } from '@/lib/utils'
 import Badge from '@/components/ui/Badge'
 import SoftDeleteButton from '@/components/SoftDeleteButton'
-import QuickNotes from '@/components/QuickNotes'
+import ActivityTimeline from '@/components/ActivityTimeline'
 
 export default async function CompanyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [company, tags, meetings, notes] = await Promise.all([
+  const [company, tags, meetings, logs] = await Promise.all([
     getCompany(id).catch(() => null),
     getTagCatalogs(),
     getCompanyMeetings(id),
-    getNotes('company', id),
+    getInteractionLogs('company', id),
   ])
 
   if (!company) notFound()
+
+  const entries = [
+    ...meetings.map((m) => ({
+      type: 'meeting' as const,
+      date: m.date,
+      meetingId: m.id,
+      meetingTitle: m.title,
+    })),
+    ...logs.map((l) => ({
+      type: 'log' as const,
+      date: l.created_at,
+      log: l,
+    })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   const fundTypeIds = new Set(tags.types.filter((t) => ['VC', 'Fund'].includes(t.name)).map((t) => t.id))
   const companyTypeId = tags.types.find((t) => t.name === 'Company')?.id
@@ -284,7 +298,8 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="mt-5">
-        <QuickNotes entityType="company" entityId={id} userId={user!.id} notes={notes} />
+        <p className="is-size-6 has-text-weight-semibold mb-3">Activity timeline</p>
+        <ActivityTimeline entityType="company" entityId={id} userId={user!.id} entries={entries} />
       </div>
     </div>
   )

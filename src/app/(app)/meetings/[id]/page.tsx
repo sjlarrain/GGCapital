@@ -8,6 +8,7 @@ import { formatDate } from '@/lib/utils'
 import Badge from '@/components/ui/Badge'
 import SoftDeleteButton from '@/components/SoftDeleteButton'
 import ParticipantManager from '@/components/ParticipantManager'
+import FlagFollowUpButton from '@/components/FlagFollowUpButton'
 
 export default async function MeetingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -39,6 +40,9 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
         </div>
         <div className="level-right">
           <div className="buttons">
+            {meeting.company_id && (
+              <FlagFollowUpButton meetingId={id} companyId={meeting.company_id} userId={user!.id} />
+            )}
             <Link href={`/meetings/${id}/edit`} className="button is-light is-small">Edit</Link>
             {!meeting.deleted_at && (
               <SoftDeleteButton entityType="meeting" id={id} userId={user!.id} />

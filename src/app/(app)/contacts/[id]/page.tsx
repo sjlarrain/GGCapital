@@ -4,24 +4,21 @@ import { createClient } from '@/lib/supabase/server'
 import { getContact } from '@/lib/actions/contacts'
 import { getContactMeetings } from '@/lib/actions/contacts'
 import { getInteractionLogs } from '@/lib/actions/interactions'
-import { getNotes } from '@/lib/actions/notes'
 import { getTagCatalogs } from '@/lib/actions/tags'
 import { formatDate } from '@/lib/utils'
 import Badge from '@/components/ui/Badge'
 import SoftDeleteButton from '@/components/SoftDeleteButton'
-import ContactTimeline from '@/components/ContactTimeline'
-import QuickNotes from '@/components/QuickNotes'
+import ActivityTimeline from '@/components/ActivityTimeline'
 
 export default async function ContactDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [contact, meetings, logs, notes, tags] = await Promise.all([
+  const [contact, meetings, logs, tags] = await Promise.all([
     getContact(id).catch(() => null),
     getContactMeetings(id),
-    getInteractionLogs(id),
-    getNotes('contact', id),
+    getInteractionLogs('contact', id),
     getTagCatalogs(),
   ])
 
@@ -210,13 +207,9 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      <div className="mb-5">
-        <QuickNotes entityType="contact" entityId={id} userId={user!.id} notes={notes} />
-      </div>
-
       <div>
         <p className="is-size-6 has-text-weight-semibold mb-3">Activity timeline</p>
-        <ContactTimeline contactId={id} userId={user!.id} entries={entries} />
+        <ActivityTimeline entityType="contact" entityId={id} userId={user!.id} entries={entries} />
       </div>
     </div>
   )

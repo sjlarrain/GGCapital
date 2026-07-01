@@ -17,11 +17,12 @@ export async function GET(req: NextRequest) {
 
   let query = supabaseAdmin
     .from('interaction_logs')
-    .select('*, contact:contacts(id, name, email), meeting:meetings(id, title, date)')
+    .select('*, meeting:meetings(id, title, date)')
     .order('created_at', { ascending: false })
     .range(q.offset, q.offset + q.limit - 1)
 
-  if (q.contact_id) query = query.eq('contact_id', q.contact_id)
+  if (q.entity_type) query = query.eq('entity_type', q.entity_type)
+  if (q.entity_id) query = query.eq('entity_id', q.entity_id)
   if (q.follow_up !== undefined) query = query.eq('follow_up', q.follow_up === 'true')
 
   const { data, error } = await query

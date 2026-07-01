@@ -129,15 +129,22 @@ describe('MeetingCreateSchema', () => {
 // ── Interaction ───────────────────────────────────────────────────────────────
 
 describe('InteractionCreateSchema', () => {
-  it('requires contact_id and note', () => {
-    expect(InteractionCreateSchema.safeParse({ contact_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', note: 'Called.' }).success).toBe(true)
-    expect(InteractionCreateSchema.safeParse({ note: 'Called.' }).success).toBe(false)
-    expect(InteractionCreateSchema.safeParse({ contact_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' }).success).toBe(false)
+  it('requires entity_type, entity_id, and note', () => {
+    expect(InteractionCreateSchema.safeParse({ entity_type: 'contact', entity_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', note: 'Called.' }).success).toBe(true)
+    expect(InteractionCreateSchema.safeParse({ entity_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', note: 'Called.' }).success).toBe(false)
+    expect(InteractionCreateSchema.safeParse({ entity_type: 'contact', note: 'Called.' }).success).toBe(false)
+    expect(InteractionCreateSchema.safeParse({ entity_type: 'contact', entity_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' }).success).toBe(false)
   })
 
-  it('defaults follow_up to false', () => {
-    const r = InteractionCreateSchema.parse({ contact_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', note: 'Hi' })
+  it('accepts entity_type company', () => {
+    expect(InteractionCreateSchema.safeParse({ entity_type: 'company', entity_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', note: 'Called.' }).success).toBe(true)
+  })
+
+  it('defaults follow_up to false and attachments to empty arrays', () => {
+    const r = InteractionCreateSchema.parse({ entity_type: 'contact', entity_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', note: 'Hi' })
     expect(r.follow_up).toBe(false)
+    expect(r.file_urls).toEqual([])
+    expect(r.links).toEqual([])
   })
 })
 

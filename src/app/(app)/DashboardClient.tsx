@@ -19,8 +19,9 @@ interface Stat {
 }
 
 interface FollowUp {
-  contact_id: string
-  contact: unknown
+  entity_type: 'contact' | 'company'
+  entity_id: string
+  name: string
 }
 
 interface Props {
@@ -164,14 +165,12 @@ export default function DashboardClient({ stats, followUps, tags, companies, con
             <div className="box p-0" style={{ overflow: 'hidden' }}>
               {followUps.slice(0, 5).map((fu) => (
                 <Link
-                  key={fu.contact_id}
-                  href={`/contacts/${fu.contact_id}`}
+                  key={`${fu.entity_type}-${fu.entity_id}`}
+                  href={fu.entity_type === 'contact' ? `/contacts/${fu.entity_id}` : `/companies/${fu.entity_id}`}
                   style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0.75rem 1rem', borderBottom: '1px solid #f5f5f5', textDecoration: 'none' }}
                 >
                   <span>🔔</span>
-                  <span className="is-size-7 has-text-weight-medium">
-                    {(fu.contact as { name: string } | null)?.name ?? 'Unknown'}
-                  </span>
+                  <span className="is-size-7 has-text-weight-medium">{fu.name}</span>
                 </Link>
               ))}
             </div>

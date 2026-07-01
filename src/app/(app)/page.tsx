@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getFollowUpContacts } from '@/lib/actions/interactions'
+import { getFollowUps } from '@/lib/actions/interactions'
 import { getTagCatalogs } from '@/lib/actions/tags'
 import { getCompanies } from '@/lib/actions/companies'
 import DashboardClient from './DashboardClient'
@@ -11,7 +11,7 @@ export default async function DashboardPage() {
   const [contactCnt, meetingCnt, followUps, tags, companies] = await Promise.all([
     supabase.from('contacts').select('id', { count: 'exact', head: true }).is('deleted_at', null),
     supabase.from('meetings').select('id', { count: 'exact', head: true }).is('deleted_at', null),
-    getFollowUpContacts(),
+    getFollowUps(),
     getTagCatalogs(),
     getCompanies(),
   ])
