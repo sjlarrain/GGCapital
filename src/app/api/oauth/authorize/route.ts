@@ -17,13 +17,17 @@ function errorPage(message: string, status = 400): Response {
   return new Response(html, { status, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
 }
 
-/** Redirect back to the client with an OAuth error (client+redirect validated). */
+/**
+ * Redirect back to the client with an OAuth error (client+redirect validated).
+ * 303 (not the NextResponse.redirect default of 307) so a POST-triggered call
+ * (e.g. the consent form's "Deny" button) always follows up with GET, not POST.
+ */
 function errorRedirect(redirectUri: string, error: string, state: string | null, description?: string): Response {
   const url = new URL(redirectUri)
   url.searchParams.set('error', error)
   if (description) url.searchParams.set('error_description', description)
   if (state) url.searchParams.set('state', state)
-  return NextResponse.redirect(url.toString())
+  return NextResponse.redirect(url.toString(), 303)
 }
 
 /** Requested scopes ∩ (role defaults ∩ OAUTH_SCOPES); empty request → all eligible defaults. */
@@ -143,7 +147,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     const next = '/api/oauth/authorize'
-    return NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(next)}`, req.url))
+    return NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(next)}`, req.url), 303)
   }
 
   const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', user.id).single()
@@ -162,5 +166,7 @@ export async function POST(req: NextRequest) {
   const url = new URL(redirectUri)
   url.searchParams.set('code', code)
   if (state) url.searchParams.set('state', state)
-  return NextResponse.redirect(url.toString())
+  // 303, not the NextResponse.redirect default of 307: this POST handler must
+  // hand off to the client's redirect_uri via GET, never re-POST the form data.
+  return NextResponse.redirect(url.toString(), 303)
 }
