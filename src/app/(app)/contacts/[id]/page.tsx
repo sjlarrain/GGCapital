@@ -4,20 +4,24 @@ import { createClient } from '@/lib/supabase/server'
 import { getContact } from '@/lib/actions/contacts'
 import { getContactMeetings } from '@/lib/actions/contacts'
 import { getInteractionLogs } from '@/lib/actions/interactions'
+import { getNotes } from '@/lib/actions/notes'
 import { getTagCatalogs } from '@/lib/actions/tags'
+import { formatDate } from '@/lib/utils'
 import Badge from '@/components/ui/Badge'
 import SoftDeleteButton from '@/components/SoftDeleteButton'
 import ContactTimeline from '@/components/ContactTimeline'
+import QuickNotes from '@/components/QuickNotes'
 
 export default async function ContactDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [contact, meetings, logs, tags] = await Promise.all([
+  const [contact, meetings, logs, notes, tags] = await Promise.all([
     getContact(id).catch(() => null),
     getContactMeetings(id),
     getInteractionLogs(id),
+    getNotes('contact', id),
     getTagCatalogs(),
   ])
 
@@ -65,7 +69,9 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      <div className="box mb-5">
+      <div className="columns mb-5">
+        <div className="column is-8">
+        <div className="box">
         <div className="columns is-multiline">
           {contact.role && (
             <div className="column is-half">
@@ -163,6 +169,49 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
             )}
           </div>
         )}
+        </div>
+        </div>
+
+        <div className="column is-4">
+          <div className="level mb-3">
+            <div className="level-left">
+              <p className="is-size-6 has-text-weight-semibold">Meetings ({meetings.length})</p>
+            </div>
+            <div className="level-right">
+              <Link
+                href={contact.company_id ? `/meetings/new?company=${contact.company_id}` : '/meetings/new'}
+                className="button is-light is-small"
+              >
+                + Log Meeting
+              </Link>
+            </div>
+          </div>
+          <div className="box p-0" style={{ overflow: 'hidden' }}>
+            {meetings.length === 0 && (
+              <p className="has-text-grey is-size-7 px-4 py-3">No meetings yet.</p>
+            )}
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {(meetings as any[]).map((m: { id: string; title: string; date: string }) => (
+              <Link
+                key={m.id}
+                href={`/meetings/${m.id}`}
+                className="level is-mobile"
+                style={{ padding: '0.6rem 1rem', borderBottom: '1px solid #f5f5f5', textDecoration: 'none', margin: 0 }}
+              >
+                <div className="level-left">
+                  <p className="is-size-7 has-text-weight-medium">{m.title}</p>
+                </div>
+                <div className="level-right">
+                  <p className="is-size-7 has-text-grey">{formatDate(m.date)}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-5">
+        <QuickNotes entityType="contact" entityId={id} userId={user!.id} notes={notes} />
       </div>
 
       <div>

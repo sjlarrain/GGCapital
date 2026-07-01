@@ -6,19 +6,22 @@ import { createClient } from '@/lib/supabase/server'
 import { getCompany } from '@/lib/actions/companies'
 import { getTagCatalogs } from '@/lib/actions/tags'
 import { getCompanyMeetings } from '@/lib/actions/meetings'
+import { getNotes } from '@/lib/actions/notes'
 import { formatDate } from '@/lib/utils'
 import Badge from '@/components/ui/Badge'
 import SoftDeleteButton from '@/components/SoftDeleteButton'
+import QuickNotes from '@/components/QuickNotes'
 
 export default async function CompanyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [company, tags, meetings] = await Promise.all([
+  const [company, tags, meetings, notes] = await Promise.all([
     getCompany(id).catch(() => null),
     getTagCatalogs(),
     getCompanyMeetings(id),
+    getNotes('company', id),
   ])
 
   if (!company) notFound()
@@ -278,6 +281,10 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="mt-5">
+        <QuickNotes entityType="company" entityId={id} userId={user!.id} notes={notes} />
       </div>
     </div>
   )

@@ -133,6 +133,20 @@ export interface InteractionLog {
 
 export type InteractionLogInsert = Omit<InteractionLog, 'id' | 'created_at'>
 
+// ── Quick Notes (migration 015) ───────────────────────────
+export interface Note {
+  id: string
+  entity_type: 'contact' | 'company'
+  entity_id: string
+  body: string
+  file_urls: string[]
+  links: string[]
+  created_by: string
+  created_at: string
+}
+
+export type NoteInsert = Omit<Note, 'id' | 'created_at'>
+
 // ── Feedback ──────────────────────────────────────────────
 export interface Feedback {
   id: string
