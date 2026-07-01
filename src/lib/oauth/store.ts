@@ -8,7 +8,7 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import type { Scope } from '@/lib/schemas/token'
+import { SCOPES, type Scope } from '@/lib/schemas/token'
 import {
   hashToken,
   mintAccessToken,
@@ -20,6 +20,12 @@ import {
   REFRESH_TTL_SECONDS,
   CODE_TTL_SECONDS,
 } from './tokens'
+
+// OAuth tokens authenticate MCP agents acting on the connecting human's behalf.
+// staging:promote is withheld from OAuth entirely: promotion is Alpha policy
+// reserved for a human clicking Promote in /triage (a browser-session action
+// that doesn't use this scope system), and no MCP tool uses this scope anymore.
+export const OAUTH_SCOPES: Scope[] = SCOPES.filter((s) => s !== 'staging:promote')
 
 export interface OAuthClient {
   client_id: string

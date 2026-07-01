@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getClient, isRegisteredRedirect, createAuthCode, type OAuthClient } from '@/lib/oauth/store'
+import { getClient, isRegisteredRedirect, createAuthCode, OAUTH_SCOPES, type OAuthClient } from '@/lib/oauth/store'
 import { ROLE_SCOPES } from '@/app/api/v1/_lib/auth'
 import type { Scope } from '@/lib/schemas/token'
 
@@ -26,9 +26,9 @@ function errorRedirect(redirectUri: string, error: string, state: string | null,
   return NextResponse.redirect(url.toString())
 }
 
-/** Requested scopes ∩ role defaults; empty request → all role defaults. */
+/** Requested scopes ∩ (role defaults ∩ OAUTH_SCOPES); empty request → all eligible defaults. */
 function grantedScopes(requested: string | null, role: 'admin' | 'user'): Scope[] {
-  const roleScopes = ROLE_SCOPES[role] ?? ROLE_SCOPES.user
+  const roleScopes = (ROLE_SCOPES[role] ?? ROLE_SCOPES.user).filter((s) => OAUTH_SCOPES.includes(s))
   if (!requested?.trim()) return roleScopes
   const req = requested.split(/\s+/).filter(Boolean)
   return roleScopes.filter((s) => req.includes(s))
