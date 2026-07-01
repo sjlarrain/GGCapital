@@ -6,6 +6,7 @@
  */
 
 import { authenticate, hasScope } from '@/app/api/v1/_lib/auth'
+import type { Scope } from '@/lib/schemas/token'
 import { hashToken } from '@/lib/auth/tokens'
 
 // ── Mock supabaseAdmin ────────────────────────────────────────────────────────
@@ -132,7 +133,7 @@ describe('authenticate — PAT', () => {
 })
 
 describe('hasScope', () => {
-  const ctx = { userId: 'u', role: 'user' as const, scopes: ['crm:read', 'crm:write'] as any[] }
+  const ctx = { userId: 'u', role: 'user' as const, scopes: ['crm:read', 'crm:write'] as Scope[], authType: 'jwt' as const }
 
   it('returns true when scope is present', () => {
     expect(hasScope(ctx, 'crm:read')).toBe(true)

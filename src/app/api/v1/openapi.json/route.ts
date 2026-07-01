@@ -6,7 +6,13 @@ const spec = {
     title: 'GG Capital CRM API',
     version: '1.0.0',
     description:
-      'Internal REST API for the GG Capital CRM. All endpoints require a Bearer token (Supabase JWT or a `ggc_` PAT created in Settings → Tokens).',
+      'Internal REST API for the GG Capital CRM. All endpoints require a Bearer token ' +
+      '(Supabase JWT, a `ggc_` PAT created in Settings → Tokens, or a `ggo_` OAuth token). ' +
+      '\n\n**Connecting an AI agent:** the same operations are exposed as MCP tools at ' +
+      '`/api/mcp`. AI clients (Claude / Cowork) connect there via OAuth 2.1 + PKCE — the user ' +
+      'signs in once in the browser (no key to copy). Discovery: ' +
+      '`/.well-known/oauth-protected-resource` → `/.well-known/oauth-authorization-server`. ' +
+      'Download the companion Skill from Settings → Tokens.',
   },
   servers: [{ url: '/api/v1', description: 'Current deployment' }],
   security: [{ bearerAuth: [] }],
@@ -16,9 +22,13 @@ const spec = {
       bearerAuth: {
         type: 'http',
         scheme: 'bearer',
-        bearerFormat: 'Supabase JWT | ggc_ PAT',
+        bearerFormat: 'Supabase JWT | ggc_ PAT | ggo_ OAuth',
         description:
-          'Send `Authorization: Bearer <token>`. Create PATs in **Settings → Tokens**. Scopes: `crm:read`, `crm:write`, `staging:read`, `staging:write`, `staging:promote`.',
+          'Send `Authorization: Bearer <token>`. Accepts a Supabase JWT, a `ggc_` PAT ' +
+          '(create in **Settings → Tokens**), or a `ggo_` OAuth token minted by the MCP ' +
+          '“Connect” flow. Scopes: `crm:read`, `crm:write`, `staging:read`, `staging:write`, ' +
+          '`staging:promote`. PATs are treated as non-interactive agents (blocked from ' +
+          'promoting while auto-promote is off); JWT/OAuth callers are humans.',
       },
     },
 

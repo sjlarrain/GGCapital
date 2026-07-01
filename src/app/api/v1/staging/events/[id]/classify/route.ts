@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server'
 import { authenticate, hasScope } from '../../../../_lib/auth'
 import { ok, unauthorized, forbidden, notFound, serverError, conflict } from '../../../../_lib/respond'
 import { classifyEvent } from '@/lib/staging/rules'
+import { computeDedupe } from '@/lib/staging/dedupe'
 import { logStagingTransition } from '@/lib/staging/log'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
@@ -29,11 +30,17 @@ export async function POST(
     return conflict(`Cannot classify a ${event.status} event`)
   }
 
+  const dedupe = await computeDedupe(supabaseAdmin, {
+    event_class:    event.event_class,
+    proposed_links: event.proposed_links,
+  })
+
   const result = classifyEvent({
     event_class:    event.event_class,
     confidence:     event.confidence,
     extracted:      event.extracted,
     proposed_links: event.proposed_links,
+    dedupe,
   })
 
   const { data: updated, error: updErr } = await supabaseAdmin

@@ -12,15 +12,35 @@
  */
 
 import type { EventClass, StagingStatus } from '@/lib/schemas/staging'
+import { mapTagName, FREE_TEXT_TAG_FIELDS, splitComma } from '@/lib/staging/mappings'
 
 /** Below this, an event stays in staging for review (never auto-`ready`). */
 export const CONFIDENCE_THRESHOLD = 0.85
+
+/**
+ * Result of searching existing records for a would-be new company/contact.
+ * Computed with DB access (see `dedupe.ts`) and injected so `classifyEvent`
+ * stays pure/testable.
+ */
+export interface DedupeSignal {
+  /** id of a confident single match → link instead of creating a duplicate. */
+  strongMatchId?: string | null
+  /** How many existing records plausibly match (for ambiguity). */
+  candidateCount?: number
+}
+
+export interface DedupeInput {
+  company?: DedupeSignal
+  contact?: DedupeSignal
+}
 
 export interface ClassifyInput {
   event_class?: EventClass | null
   confidence?: number | null
   extracted?: Record<string, unknown> | null
   proposed_links?: Record<string, unknown> | null
+  /** Optional dedupe signals; when absent, dedupe gates are skipped. */
+  dedupe?: DedupeInput | null
 }
 
 export interface ClassifyResult {
@@ -78,10 +98,45 @@ export function hardGateReasons(input: ClassifyInput): string[] {
     if (!present(extracted, 'date') && !present(asObj(links.meeting), 'date')) reasons.push('missing_date')
   }
 
-  // TODO(A6): dedupe (ambiguous_contact / ambiguous_company) and tag mapping
-  // (unmapped_tag) gates once mappings.ts and crm_search are wired in.
+  // ── Dedupe gate (A6): only when dedupe signals were supplied ────────────────
+  // A confident existing match must be linked (not duplicated); several weak
+  // candidates are ambiguous and need a human/agent to pick.
+  const dedupe = input.dedupe ?? undefined
+  if (cls === 'new_company' && dedupe?.company) {
+    if (dedupe.company.strongMatchId) reasons.push('duplicate_company')
+    else if ((dedupe.company.candidateCount ?? 0) > 1) reasons.push('ambiguous_company')
+  }
+  if (cls === 'new_contact' && dedupe?.contact) {
+    if (dedupe.contact.strongMatchId) reasons.push('duplicate_contact')
+    else if ((dedupe.contact.candidateCount ?? 0) > 1) reasons.push('ambiguous_contact')
+  }
+
+  // ── Tag-mapping gate (A6): free-text tags must map to a known catalog ───────
+  if (unmappedTags(extracted, company, contact)) reasons.push('unmapped_tag')
 
   return reasons
+}
+
+/**
+ * True if any free-text tag field (on `extracted`, or on the proposed company /
+ * contact) carries a value that doesn't map to a known catalog name. Resolved
+ * tag *ids* (`*_ids`) are ignored here — this only guards free text.
+ */
+function unmappedTags(...sources: (Obj | null)[]): boolean {
+  for (const src of sources) {
+    if (!src) continue
+    for (const [field, catalog] of Object.entries(FREE_TEXT_TAG_FIELDS)) {
+      const raw = src[field]
+      if (raw === null || raw === undefined || raw === '') continue
+      const values = Array.isArray(raw)
+        ? raw.map((v) => String(v))
+        : splitComma(String(raw))
+      for (const v of values) {
+        if (!mapTagName(catalog, v).resolved) return true
+      }
+    }
+  }
+  return false
 }
 
 /** Best-effort class inference from the proposed links when none was supplied. */

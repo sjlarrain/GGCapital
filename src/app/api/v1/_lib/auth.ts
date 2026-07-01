@@ -1,5 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { hashToken } from '@/lib/auth/tokens'
+import { isOAuthToken } from '@/lib/oauth/tokens'
+import { verifyOAuthToken } from '@/lib/oauth/verify'
 import type { Scope } from '@/lib/schemas/token'
 
 export type { Scope }
@@ -8,16 +10,25 @@ export interface AuthContext {
   userId: string
   role: 'admin' | 'user'
   scopes: Scope[]
-  /** How the caller authenticated. PATs are treated as non-interactive "agents". */
-  authType: 'jwt' | 'pat'
+  /**
+   * How the caller authenticated:
+   *   jwt   — interactive human on a Supabase session
+   *   oauth — interactive human who connected an MCP client via the OAuth flow
+   *   pat   — non-interactive server-to-server "agent"
+   */
+  authType: 'jwt' | 'pat' | 'oauth'
 }
 
-/** A PAT caller is a server-to-server agent (vs. an interactive human on a JWT session). */
+/**
+ * A PAT caller is a server-to-server agent (vs. an interactive human on a JWT
+ * or OAuth session). OAuth tokens are issued after a human logs in, so they
+ * count as humans — the auto-promote gate only blocks PAT agents.
+ */
 export function isAgent(ctx: AuthContext): boolean {
   return ctx.authType === 'pat'
 }
 
-const ROLE_SCOPES: Record<string, Scope[]> = {
+export const ROLE_SCOPES: Record<string, Scope[]> = {
   admin: ['crm:read', 'crm:write', 'staging:read', 'staging:write', 'staging:promote'],
   user:  ['crm:read', 'crm:write', 'staging:read', 'staging:write'],
 }
@@ -26,7 +37,15 @@ export async function authenticate(req: Request): Promise<AuthContext | null> {
   const header = req.headers.get('authorization')
   if (!header?.startsWith('Bearer ')) return null
   const token = header.slice(7)
-  return token.startsWith('ggc_') ? verifyPAT(token) : verifyJWT(token)
+  if (token.startsWith('ggc_')) return verifyPAT(token)
+  if (isOAuthToken(token)) return verifyOAuth(token)
+  return verifyJWT(token)
+}
+
+async function verifyOAuth(raw: string): Promise<AuthContext | null> {
+  const id = await verifyOAuthToken(raw)
+  if (!id) return null
+  return { userId: id.userId, role: id.role, scopes: id.scopes, authType: 'oauth' }
 }
 
 async function verifyPAT(raw: string): Promise<AuthContext | null> {

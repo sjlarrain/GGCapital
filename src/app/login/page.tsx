@@ -1,10 +1,27 @@
 'use client'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
+/** Only allow same-origin relative paths as a post-login destination. */
+function safeNext(raw: string | null): string {
+  if (raw && raw.startsWith('/') && !raw.startsWith('//')) return raw
+  return '/'
+}
+
+// useSearchParams() forces client rendering, so the form lives in its own
+// component wrapped in <Suspense> (Next's CSR-bailout requirement at build).
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -22,7 +39,9 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/')
+      // Honour ?next= so the OAuth "Connect" flow returns to the consent screen.
+      const next = safeNext(searchParams.get('next'))
+      router.push(next)
       router.refresh()
     }
   }
