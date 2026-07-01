@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { registerClient } from '@/lib/oauth/store'
+import { registerClient, OAuthError } from '@/lib/oauth/store'
 import { jsonCors, corsPreflight } from '@/lib/oauth/http'
 
 export const runtime = 'nodejs'
@@ -29,22 +29,29 @@ export async function POST(req: Request) {
     )
   }
 
-  const client = await registerClient({
-    client_name: parsed.data.client_name ?? null,
-    redirect_uris: parsed.data.redirect_uris,
-  })
+  try {
+    const client = await registerClient({
+      client_name: parsed.data.client_name ?? null,
+      redirect_uris: parsed.data.redirect_uris,
+    })
 
-  return jsonCors(
-    {
-      client_id: client.client_id,
-      client_name: client.client_name,
-      redirect_uris: client.redirect_uris,
-      grant_types: client.grant_types,
-      token_endpoint_auth_method: client.token_endpoint_auth_method,
-      client_id_issued_at: Math.floor(Date.now() / 1000),
-    },
-    201
-  )
+    return jsonCors(
+      {
+        client_id: client.client_id,
+        client_name: client.client_name,
+        redirect_uris: client.redirect_uris,
+        grant_types: client.grant_types,
+        token_endpoint_auth_method: client.token_endpoint_auth_method,
+        client_id_issued_at: Math.floor(Date.now() / 1000),
+      },
+      201
+    )
+  } catch (e) {
+    if (e instanceof OAuthError) {
+      return jsonCors({ error: e.code, error_description: e.message }, 500)
+    }
+    return jsonCors({ error: 'server_error', error_description: 'client registration failed' }, 500)
+  }
 }
 
 export function OPTIONS() {
