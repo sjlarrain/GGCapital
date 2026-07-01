@@ -29,16 +29,15 @@ you are not sure, to stage the record for human review rather than guess.
 4. **When unsure, stage it.** If you can't confidently resolve a company/contact, a tag, or a
    required field, call `staging_ingest` instead of `crm_create_*`. Low-confidence or
    incomplete events belong in the review queue.
-5. **You don't self-approve.** Promotion of a staged event into the live CRM is a human step
-   unless an admin has enabled auto-promote.
+5. **You don't self-approve.** There is no `staging_promote` tool. Promotion of a staged event
+   into the live CRM only happens when a human clicks Promote in `/triage`.
 
 ## Tools
 
 Reads: `crm_search`, `crm_get_company`, `crm_get_contact`, `crm_get_meeting`, `tags_list`.
 Writes: `crm_create_company`, `crm_create_contact`, `crm_create_meeting`,
 `crm_update_company`, `crm_update_contact`.
-Staging/triage: `staging_ingest`, `staging_classify`, `staging_list`, `staging_promote`,
-`staging_reject`.
+Staging/triage: `staging_ingest`, `staging_classify`, `staging_list`, `staging_reject`.
 
 ## Where to go next
 

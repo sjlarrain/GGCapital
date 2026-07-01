@@ -26,8 +26,8 @@ CRM records — creating what's confident, staging what isn't.
    `blocking_reasons`. Fix what you can (e.g. add a resolved tag id) and re-ingest, or leave
    it for human review.
 4. **Report.** Summarize: created vs staged, and the top `blocking_reasons` so the user knows
-   what needs attention. Do not `staging_promote` unless the user/admin asks (agents are
-   gated).
+   what needs attention. Promotion into the live CRM isn't a tool you have — a human does it
+   from `/triage`.
 
 ## Idempotency
 

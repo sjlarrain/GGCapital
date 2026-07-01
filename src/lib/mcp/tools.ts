@@ -17,7 +17,7 @@ import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/proto
 import type { ServerRequest, ServerNotification, CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 
-import { hasScope, isAgent, type AuthContext, type Scope } from '@/app/api/v1/_lib/auth'
+import { hasScope, type AuthContext, type Scope } from '@/app/api/v1/_lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import {
   CompanyCreateSchema,
@@ -28,8 +28,6 @@ import { MeetingCreateSchema } from '@/lib/schemas/meeting'
 import { StagingIngestSchema, StagingListQuerySchema } from '@/lib/schemas/staging'
 import { classifyEvent } from '@/lib/staging/rules'
 import { computeDedupe } from '@/lib/staging/dedupe'
-import { promoteStagingEvent, StagingNotReadyError, StagingNothingToPromoteError } from '@/lib/staging/promote'
-import { isAutoPromoteEnabled } from '@/lib/staging/config'
 import { logStagingTransition } from '@/lib/staging/log'
 
 type Extra = RequestHandlerExtra<ServerRequest, ServerNotification>
@@ -270,26 +268,11 @@ export function registerCrmTools(server: McpServer): void {
     }
   )
 
-  server.registerTool(
-    'staging_promote',
-    { title: 'Promote a staged event', description: 'Promote a READY staged event into the official CRM tables (transactional). Agents (PAT) are blocked while auto-promote is off; human sessions may promote.', inputSchema: { id: z.string().uuid() } },
-    async ({ id }, extra) => {
-      const g = guard(extra, 'staging:promote'); if ('error' in g) return g.error
-      const { data: event, error: loadErr } = await supabaseAdmin.from('staging_events').select('id, status').eq('id', id).single()
-      if (loadErr || !event) return toolErr('Not found')
-      if (event.status !== 'ready') return toolErr('Event is not ready for promotion')
-      if (isAgent(g.ctx) && !isAutoPromoteEnabled()) return toolErr('Auto-promote is disabled; agent promotion requires human review')
-
-      try {
-        const result = await promoteStagingEvent(id, g.ctx.userId)
-        return toolOk(result)
-      } catch (e) {
-        if (e instanceof StagingNotReadyError || e instanceof StagingNothingToPromoteError) return toolErr(e.message)
-        if (e instanceof Error && e.message === 'STAGING_NOT_FOUND') return toolErr('Not found')
-        return toolErr(e instanceof Error ? e.message : 'Promotion failed')
-      }
-    }
-  )
+  // No staging_promote tool: promotion into the live CRM is intentionally
+  // reserved for a human clicking Promote in /triage (Alpha policy), never an
+  // MCP tool call — OAuth-connected agents act as the human, so isAgent()
+  // alone can't gate this the way it gates PAT callers. Use the REST
+  // `/api/v1/staging/events/[id]/promote` route (session-authenticated) instead.
 
   server.registerTool(
     'staging_reject',

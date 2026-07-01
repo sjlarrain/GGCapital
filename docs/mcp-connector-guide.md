@@ -120,9 +120,11 @@ Fifteen tools, grouped by the scope they require. Scopes come from your role:
 - `staging_classify` (`staging:write`) — run the gates on a staged event → `classified` /
   `needs_info` / `ready`.
 - `staging_list` (`staging:read`) — browse the queue.
-- `staging_promote` (`staging:promote`) — promote a `ready` event into the live CRM
-  (transactional: company + contact created together or not at all).
 - `staging_reject` (`staging:write`) — terminally reject an event.
+
+There is no `staging_promote` MCP tool. Promotion of a `ready` event into the live CRM
+(transactional: company + contact created together or not at all) only happens when a human
+clicks Promote in `/triage` — Alpha policy, agents never self-approve.
 
 ### The gates every write goes through
 
