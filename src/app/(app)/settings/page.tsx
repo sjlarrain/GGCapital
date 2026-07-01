@@ -1,6 +1,18 @@
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('id', user!.id)
+    .single()
+
+  const isAdmin = profile?.role === 'admin'
+
   return (
     <div className="container" style={{ maxWidth: 640, padding: '2rem 1rem' }}>
       <h1 className="title is-4 mb-5">Settings</h1>
@@ -30,6 +42,20 @@ export default function SettingsPage() {
           </Link>
         </div>
 
+        {isAdmin && (
+          <div className="column is-full">
+            <Link href="/settings/mcp" className="box" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>🤖</span>
+                <div>
+                  <p className="has-text-weight-semibold">AI Agent (MCP)</p>
+                  <p className="has-text-grey is-size-7">Connect Claude / Cowork and download the CRM Skill.</p>
+                </div>
+              </div>
+            </Link>
+          </div>
+        )}
+
         <div className="column is-full">
           <a href="/docs/api" target="_blank" rel="noopener noreferrer" className="box" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -41,6 +67,20 @@ export default function SettingsPage() {
             </div>
           </a>
         </div>
+
+        {isAdmin && (
+          <div className="column is-full">
+            <a href="/docs/mcp" target="_blank" rel="noopener noreferrer" className="box" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>📘</span>
+                <div>
+                  <p className="has-text-weight-semibold">AI Agent Setup Guide <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>↗</span></p>
+                  <p className="has-text-grey is-size-7">Step-by-step manual for connecting an AI agent — no technical background needed.</p>
+                </div>
+              </div>
+            </a>
+          </div>
+        )}
       </div>
     </div>
   )

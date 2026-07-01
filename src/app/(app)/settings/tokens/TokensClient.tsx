@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import { useActionState, useRef } from 'react'
 import { createApiToken, revokeApiToken } from '@/lib/actions/tokens'
 import type { Scope } from '@/lib/schemas/token'
@@ -75,10 +76,16 @@ export default function TokensClient({
 
   return (
     <div className="container" style={{ maxWidth: 800, padding: '2rem 1rem' }}>
-      <h1 className="title is-4">API Tokens</h1>
+      <Link href="/settings" className="has-text-grey is-size-7" style={{ textDecoration: 'none' }}>
+        ← Settings
+      </Link>
+      <h1 className="title is-4 mt-3">API Tokens</h1>
       <p className="subtitle is-6 mb-5">
         Tokens authenticate programmatic access to <code>/api/v1/*</code>.
         Send <code>Authorization: Bearer ggc_…</code>. The raw token is shown once — store it securely.
+        {userRole === 'admin' && (
+          <> Need to connect an AI agent instead? See <Link href="/settings/mcp">AI Agent (MCP)</Link>.</>
+        )}
       </p>
 
       {/* ── Create form ── */}
