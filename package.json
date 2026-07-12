@@ -22,7 +22,8 @@
     "lint": "eslint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "build:skill": "node scripts/build_skill.mjs"
+    "build:skill": "node scripts/build_skill.mjs",
+    "build:network-skill": "node scripts/build_network_skill.mjs"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

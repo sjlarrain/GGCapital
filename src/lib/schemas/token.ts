@@ -6,6 +6,11 @@ export const SCOPES = [
   'staging:read',
   'staging:write',
   'staging:promote',
+  // Network Intelligence. Grantable only to allowlisted users (isNetworkUser),
+  // never by role — see src/lib/network/allowlist.ts. Flows into OAUTH_SCOPES
+  // automatically (only staging:promote is filtered out of OAuth).
+  'network:read',
+  'network:write',
 ] as const
 
 export type Scope = (typeof SCOPES)[number]

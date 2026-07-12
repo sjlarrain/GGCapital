@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getClient, isRegisteredRedirect, createAuthCode, OAUTH_SCOPES, type OAuthClient } from '@/lib/oauth/store'
 import { ROLE_SCOPES } from '@/app/api/v1/_lib/auth'
+import { isNetworkUser, NETWORK_SCOPES } from '@/lib/network/allowlist'
 import type { Scope } from '@/lib/schemas/token'
 
 export const runtime = 'nodejs'
@@ -30,9 +31,15 @@ function errorRedirect(redirectUri: string, error: string, state: string | null,
   return NextResponse.redirect(url.toString(), 303)
 }
 
-/** Requested scopes ∩ (role defaults ∩ OAUTH_SCOPES); empty request → all eligible defaults. */
-function grantedScopes(requested: string | null, role: 'admin' | 'user'): Scope[] {
-  const roleScopes = (ROLE_SCOPES[role] ?? ROLE_SCOPES.user).filter((s) => OAUTH_SCOPES.includes(s))
+/**
+ * Requested scopes ∩ (eligible defaults ∩ OAUTH_SCOPES); empty request → all
+ * eligible defaults. Eligible = the user's role defaults, plus network:* when the
+ * user is on the network allowlist (network:* is granted per-user, not by role).
+ */
+function grantedScopes(requested: string | null, role: 'admin' | 'user', userId: string): Scope[] {
+  const base = ROLE_SCOPES[role] ?? ROLE_SCOPES.user
+  const eligible = isNetworkUser(userId) ? [...base, ...NETWORK_SCOPES] : base
+  const roleScopes = eligible.filter((s) => OAUTH_SCOPES.includes(s))
   if (!requested?.trim()) return roleScopes
   const req = requested.split(/\s+/).filter(Boolean)
   return roleScopes.filter((s) => req.includes(s))
@@ -113,7 +120,7 @@ export async function GET(req: NextRequest) {
   return consentPage({
     client,
     email: user.email ?? user.id,
-    scopes: grantedScopes(scope, role),
+    scopes: grantedScopes(scope, role, user.id),
     redirectUri,
     state,
     codeChallenge,
@@ -152,7 +159,7 @@ export async function POST(req: NextRequest) {
 
   const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', user.id).single()
   const role = (profile?.role ?? 'user') as 'admin' | 'user'
-  const scopes = grantedScopes(scope, role)
+  const scopes = grantedScopes(scope, role, user.id)
 
   const code = await createAuthCode({
     clientId,

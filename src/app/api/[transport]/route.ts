@@ -1,6 +1,6 @@
 import { createMcpHandler, withMcpAuth } from 'mcp-handler'
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js'
-import { registerCrmTools } from '@/lib/mcp/tools'
+import { registerCrmTools, registerNetworkTools } from '@/lib/mcp/tools'
 import { authenticate } from '@/app/api/v1/_lib/auth'
 
 export const runtime = 'nodejs'
@@ -11,7 +11,10 @@ export const maxDuration = 60
 // once per server init; auth is enforced by withMcpAuth via verifyBearer, which
 // reuses the same PAT/OAuth verification as the REST API.
 const base = createMcpHandler(
-  (server) => registerCrmTools(server),
+  (server) => {
+    registerCrmTools(server)
+    registerNetworkTools(server)
+  },
   { serverInfo: { name: 'gg-capital-crm', version: '1.0.0' } },
   { basePath: '/api', disableSse: true, maxDuration: 60 }
 )

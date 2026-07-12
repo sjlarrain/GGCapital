@@ -23,6 +23,8 @@ const SCOPE_LABELS: Record<Scope, string> = {
   'staging:read':      'Staging Read',
   'staging:write':     'Staging Write',
   'staging:promote':   'Staging Promote',
+  'network:read':      'Network Read',
+  'network:write':     'Network Write',
 }
 
 function fmt(ts: string | null) {
@@ -33,15 +35,21 @@ function fmt(ts: string | null) {
 export default function TokensClient({
   initialTokens,
   userRole,
+  canGrantNetwork,
 }: {
   initialTokens: Token[]
   userRole: 'admin' | 'user'
+  canGrantNetwork: boolean
 }) {
   const formRef = useRef<HTMLFormElement>(null)
 
-  const allowedScopes = userRole === 'admin'
-    ? SCOPES
-    : SCOPES.filter((s) => s !== 'staging:promote')
+  // network:* are shown only to allowlisted users (canGrantNetwork), never by
+  // role; staging:promote stays admin-only. Both are stripped for everyone else.
+  const allowedScopes = SCOPES.filter((s) => {
+    if (s === 'staging:promote') return userRole === 'admin'
+    if (s === 'network:read' || s === 'network:write') return canGrantNetwork
+    return true
+  })
 
   const [createState, createAction, creating] = useActionState(
     async (_prev: CreateState, formData: FormData): Promise<CreateState> => {
@@ -111,7 +119,8 @@ export default function TokensClient({
             </div>
             <p className="help">
               Admin tokens can also be granted <code>staging:promote</code>.
-              Token scopes cannot exceed your own role permissions.
+              {canGrantNetwork && <> You can grant <code>network:read</code>/<code>network:write</code> for intro bulk-loading.</>}
+              {' '}Token scopes cannot exceed your own role permissions.
             </p>
           </div>
 

@@ -14,6 +14,7 @@ const navItems = [
   { href: '/companies?view=investors', label: 'Investors & Network', icon: '📊' },
   { href: '/contacts', label: 'Contacts', icon: '👤' },
   { href: '/meetings', label: 'Meetings', icon: '📅' },
+  { href: '/network', label: 'Network', icon: '🕸' },
   { href: '/tags', label: 'Tags', icon: '🏷' },
 ]
 

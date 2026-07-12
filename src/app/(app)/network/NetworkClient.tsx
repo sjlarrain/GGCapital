@@ -1,0 +1,248 @@
+'use client'
+import Link from 'next/link'
+import { useMemo, useState } from 'react'
+import type { NetworkNode, ConstellationEdge, NetworkRole } from '@/lib/network/roles'
+
+// ── role palette (accessible on the light canvas; matches the legend) ─────────
+const ROLE_COLOR: Record<NetworkRole, string> = {
+  connector:   '#6366f1', // indigo — facilitates AND receives
+  facilitator: '#0ea5e9', // sky — makes intros
+  beneficiary: '#10b981', // emerald — receives intros
+  peripheral:  '#94a3b8', // slate — neither
+}
+const ROLE_LABEL: Record<NetworkRole, string> = {
+  connector: 'Connector', facilitator: 'Facilitator', beneficiary: 'Beneficiary', peripheral: 'Peripheral',
+}
+
+const WIDTH = 820
+const HEIGHT = 560
+
+interface Pt { x: number; y: number }
+
+/**
+ * Deterministic Fruchterman–Reingold layout. Seeded on a circle by index so the
+ * same graph always lays out the same way (no animation, SSR-stable). O(n²) per
+ * iteration — fine for the hundreds-of-orgs scale this graph operates at.
+ */
+function computeLayout(nodes: NetworkNode[], edges: ConstellationEdge[]): Map<string, Pt> {
+  const pos = new Map<string, Pt>()
+  const n = nodes.length
+  if (n === 0) return pos
+  const R = Math.min(WIDTH, HEIGHT) * 0.34
+  nodes.forEach((nd, i) => {
+    const a = (i / n) * 2 * Math.PI
+    pos.set(nd.company_id, { x: WIDTH / 2 + Math.cos(a) * R, y: HEIGHT / 2 + Math.sin(a) * R })
+  })
+  if (n === 1) return pos
+
+  const area = WIDTH * HEIGHT
+  const k = 0.8 * Math.sqrt(area / n) // ideal edge length
+  const present = new Set(nodes.map((nd) => nd.company_id))
+  const links = edges.filter((e) => present.has(e.source_company_id) && present.has(e.target_company_id))
+  let temp = WIDTH / 10
+  const iterations = 300
+
+  for (let it = 0; it < iterations; it++) {
+    const disp = new Map<string, Pt>()
+    for (const nd of nodes) disp.set(nd.company_id, { x: 0, y: 0 })
+
+    // Repulsion between every pair.
+    for (let i = 0; i < n; i++) {
+      const a = pos.get(nodes[i].company_id)!
+      const da = disp.get(nodes[i].company_id)!
+      for (let j = i + 1; j < n; j++) {
+        const b = pos.get(nodes[j].company_id)!
+        const dx = a.x - b.x
+        const dy = a.y - b.y
+        const d = Math.hypot(dx, dy) || 0.01
+        const f = (k * k) / d
+        const ux = (dx / d) * f
+        const uy = (dy / d) * f
+        da.x += ux; da.y += uy
+        const db = disp.get(nodes[j].company_id)!
+        db.x -= ux; db.y -= uy
+      }
+    }
+
+    // Attraction along edges (weighted: heavier edges pull harder).
+    for (const e of links) {
+      const a = pos.get(e.source_company_id)!
+      const b = pos.get(e.target_company_id)!
+      const dx = a.x - b.x
+      const dy = a.y - b.y
+      const d = Math.hypot(dx, dy) || 0.01
+      const f = ((d * d) / k) * Math.min(1 + Math.log2(e.weight + 1) * 0.3, 3)
+      const ux = (dx / d) * f
+      const uy = (dy / d) * f
+      disp.get(e.source_company_id)!.x -= ux
+      disp.get(e.source_company_id)!.y -= uy
+      disp.get(e.target_company_id)!.x += ux
+      disp.get(e.target_company_id)!.y += uy
+    }
+
+    // Apply, capped by the cooling temperature; keep inside the canvas.
+    for (const nd of nodes) {
+      const p = pos.get(nd.company_id)!
+      const dp = disp.get(nd.company_id)!
+      const d = Math.hypot(dp.x, dp.y) || 0.01
+      p.x += (dp.x / d) * Math.min(d, temp)
+      p.y += (dp.y / d) * Math.min(d, temp)
+      p.x = Math.max(24, Math.min(WIDTH - 24, p.x))
+      p.y = Math.max(24, Math.min(HEIGHT - 24, p.y))
+    }
+    temp *= 0.96
+  }
+  return pos
+}
+
+function radius(node: NetworkNode): number {
+  return 5 + Math.min(node.degree, 12) * 1.4 + Math.min(node.intros_received, 8) * 0.6
+}
+
+export default function NetworkClient({ nodes, edges }: { nodes: NetworkNode[]; edges: ConstellationEdge[] }) {
+  const maxDegree = useMemo(() => nodes.reduce((m, n) => Math.max(m, n.degree), 0), [nodes])
+  const [minConnections, setMinConnections] = useState(0)
+  const [hovered, setHovered] = useState<string | null>(null)
+
+  // Adjacency for neighbor-highlight.
+  const adjacency = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    for (const e of edges) {
+      if (!map.has(e.source_company_id)) map.set(e.source_company_id, new Set())
+      if (!map.has(e.target_company_id)) map.set(e.target_company_id, new Set())
+      map.get(e.source_company_id)!.add(e.target_company_id)
+      map.get(e.target_company_id)!.add(e.source_company_id)
+    }
+    return map
+  }, [edges])
+
+  // Apply the min-connections filter to nodes + the edges between survivors.
+  const { visibleNodes, visibleEdges } = useMemo(() => {
+    const vn = nodes.filter((n) => n.degree >= minConnections)
+    const ids = new Set(vn.map((n) => n.company_id))
+    const ve = edges.filter((e) => ids.has(e.source_company_id) && ids.has(e.target_company_id))
+    return { visibleNodes: vn, visibleEdges: ve }
+  }, [nodes, edges, minConnections])
+
+  const layout = useMemo(() => computeLayout(visibleNodes, visibleEdges), [visibleNodes, visibleEdges])
+  const maxWeight = useMemo(() => visibleEdges.reduce((m, e) => Math.max(m, e.weight), 1), [visibleEdges])
+
+  const isDimmed = (id: string) =>
+    hovered !== null && hovered !== id && !(adjacency.get(hovered)?.has(id) ?? false)
+
+  const totalIntros = useMemo(() => nodes.reduce((s, n) => s + n.intros_received, 0), [nodes])
+
+  return (
+    <div className="container" style={{ maxWidth: 1200, padding: '2rem 1rem' }}>
+      <h1 className="title is-4">Network Intelligence</h1>
+      <p className="subtitle is-6 has-text-grey">
+        The relationship constellation, computed live from intros. {nodes.length} organizations · {edges.length} connections.
+      </p>
+
+      {nodes.length === 0 ? (
+        <div className="notification is-light">
+          <strong>No intros yet.</strong> Load introductions with the Network Intelligence Skill (Settings → Tokens)
+          or the bulk loader, and confirm any new companies in <Link href="/triage">Triage</Link>. The constellation appears here as intros land.
+        </div>
+      ) : (
+        <div className="columns">
+          {/* ── Constellation ── */}
+          <div className="column is-two-thirds">
+            <div className="box" style={{ padding: '0.75rem' }}>
+              <div className="is-flex is-align-items-center is-justify-content-space-between mb-2" style={{ gap: '1rem', flexWrap: 'wrap' }}>
+                <div className="is-flex" style={{ gap: '0.9rem', flexWrap: 'wrap' }}>
+                  {(Object.keys(ROLE_COLOR) as NetworkRole[]).map((r) => (
+                    <span key={r} className="is-size-7 is-flex is-align-items-center" style={{ gap: 4 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: ROLE_COLOR[r], display: 'inline-block' }} />
+                      {ROLE_LABEL[r]}
+                    </span>
+                  ))}
+                </div>
+                <label className="is-size-7 has-text-grey is-flex is-align-items-center" style={{ gap: 6 }}>
+                  Min connections: <strong>{minConnections}</strong>
+                  <input
+                    type="range" min={0} max={Math.max(maxDegree, 1)} value={minConnections}
+                    onChange={(e) => setMinConnections(Number(e.target.value))}
+                    style={{ verticalAlign: 'middle' }}
+                  />
+                </label>
+              </div>
+
+              <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} style={{ width: '100%', height: 'auto', background: '#fbfcfe', borderRadius: 6 }}>
+                {/* edges */}
+                {visibleEdges.map((e, i) => {
+                  const a = layout.get(e.source_company_id)
+                  const b = layout.get(e.target_company_id)
+                  if (!a || !b) return null
+                  const dim = isDimmed(e.source_company_id) && isDimmed(e.target_company_id)
+                  return (
+                    <line
+                      key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                      stroke="#cbd5e1" strokeOpacity={dim ? 0.15 : 0.55}
+                      strokeWidth={1 + (e.weight / maxWeight) * 4}
+                    />
+                  )
+                })}
+                {/* nodes */}
+                {visibleNodes.map((n) => {
+                  const p = layout.get(n.company_id)
+                  if (!p) return null
+                  const dim = isDimmed(n.company_id)
+                  const r = radius(n)
+                  const showLabel = (hovered === n.company_id || n.degree >= Math.max(2, maxDegree * 0.6))
+                  return (
+                    <g key={n.company_id}
+                       onMouseEnter={() => setHovered(n.company_id)}
+                       onMouseLeave={() => setHovered(null)}
+                       style={{ cursor: 'pointer', opacity: dim ? 0.25 : 1 }}>
+                      <circle cx={p.x} cy={p.y} r={r} fill={ROLE_COLOR[n.role]} stroke="#fff" strokeWidth={1.5} />
+                      {showLabel && (
+                        <text x={p.x} y={p.y - r - 3} textAnchor="middle" fontSize={11} fill="#334155">
+                          {n.name}
+                        </text>
+                      )}
+                    </g>
+                  )
+                })}
+              </svg>
+              <p className="help has-text-grey">Hover an organization to highlight its direct connections. Node size ≈ connections + intros received.</p>
+            </div>
+          </div>
+
+          {/* ── Leaderboard ── */}
+          <div className="column is-one-third">
+            <div className="box" style={{ padding: '1rem' }}>
+              <h2 className="title is-6 mb-1">Leaderboard</h2>
+              <p className="is-size-7 has-text-grey mb-3">{totalIntros} intros received across the network.</p>
+              <table className="table is-fullwidth is-narrow is-hoverable">
+                <thead>
+                  <tr>
+                    <th>Organization</th>
+                    <th title="Intros facilitated" className="has-text-right">Made</th>
+                    <th title="Intros received" className="has-text-right">Recv</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {nodes.slice(0, 25).map((n) => (
+                    <tr key={n.company_id}
+                        onMouseEnter={() => setHovered(n.company_id)}
+                        onMouseLeave={() => setHovered(null)}
+                        style={{ background: hovered === n.company_id ? '#eef2ff' : undefined }}>
+                      <td>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: ROLE_COLOR[n.role], display: 'inline-block', marginRight: 6 }} />
+                        {n.name}
+                      </td>
+                      <td className="has-text-right">{n.intros_facilitated || '—'}</td>
+                      <td className="has-text-right">{n.intros_received || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {nodes.length > 25 && <p className="help has-text-grey">Showing top 25 of {nodes.length}.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

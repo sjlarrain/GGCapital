@@ -27,8 +27,9 @@ const spec = {
           'Send `Authorization: Bearer <token>`. Accepts a Supabase JWT, a `ggc_` PAT ' +
           '(create in **Settings → Tokens**), or a `ggo_` OAuth token minted by the MCP ' +
           '“Connect” flow. Scopes: `crm:read`, `crm:write`, `staging:read`, `staging:write`, ' +
-          '`staging:promote`. PATs are treated as non-interactive agents (blocked from ' +
-          'promoting while auto-promote is off); JWT/OAuth callers are humans.',
+          '`staging:promote`, plus `network:read`/`network:write` (internal-only, granted per ' +
+          'user via the network allowlist). PATs are treated as non-interactive agents (blocked ' +
+          'from promoting while auto-promote is off); JWT/OAuth callers are humans.',
       },
     },
 

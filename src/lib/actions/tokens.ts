@@ -4,8 +4,12 @@ import { mintToken } from '@/lib/auth/tokens'
 import { revalidatePath } from 'next/cache'
 import type { Scope } from '@/lib/schemas/token'
 import { SCOPES } from '@/lib/schemas/token'
+import { isNetworkUser, NETWORK_SCOPES } from '@/lib/network/allowlist'
 
-const ADMIN_SCOPES: Scope[] = [...SCOPES]
+// network:* are intentionally excluded from both role sets: they are granted by
+// the per-user allowlist below, not by role. (ADMIN_SCOPES spreads all SCOPES,
+// so it would otherwise include them — strip them back out here.)
+const ADMIN_SCOPES: Scope[] = SCOPES.filter((s) => !NETWORK_SCOPES.includes(s))
 const USER_SCOPES:  Scope[] = ['crm:read', 'crm:write', 'staging:read', 'staging:write']
 
 export async function listApiTokens() {
@@ -36,7 +40,9 @@ export async function createApiToken(
     .eq('id', user.id)
     .single()
 
-  const allowed = profile?.role === 'admin' ? ADMIN_SCOPES : USER_SCOPES
+  const roleScopes = profile?.role === 'admin' ? ADMIN_SCOPES : USER_SCOPES
+  // Allowlisted users may additionally mint tokens carrying network:*.
+  const allowed = isNetworkUser(user.id) ? [...roleScopes, ...NETWORK_SCOPES] : roleScopes
   const validScopes = scopes.filter((s) => allowed.includes(s))
   if (validScopes.length === 0) throw new Error('No valid scopes')
 
