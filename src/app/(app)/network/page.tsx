@@ -38,5 +38,28 @@ export default async function NetworkPage() {
   const leaderboard = (leaderboardRes.data ?? []) as LeaderboardRow[]
   const nodes = buildNodes(leaderboard, edges)
 
-  return <NetworkClient nodes={nodes} edges={edges} />
+  // Per-node "flow" for graph coloring: does this org feed GG intros (inbound),
+  // get connected by GG (outbound), or both? Far more legible than the role
+  // colouring, which collapses almost everything to "beneficiary".
+  const partiesRes = await supabaseAdmin
+    .from('intro_parties')
+    .select('entity_id, intros(direction, deleted_at)')
+  // intro_parties → intros is many-to-one (one object at runtime), though the
+  // untyped PostgREST client infers an array — normalize defensively.
+  type FlowRow = { entity_id: string; intros: { direction: string; deleted_at: string | null } | { direction: string; deleted_at: string | null }[] | null }
+  const flowCounts = new Map<string, { in: number; out: number }>()
+  for (const row of (partiesRes.data ?? []) as unknown as FlowRow[]) {
+    const intro = Array.isArray(row.intros) ? row.intros[0] : row.intros
+    if (!intro || intro.deleted_at) continue
+    const f = flowCounts.get(row.entity_id) ?? { in: 0, out: 0 }
+    if (intro.direction === 'inbound') f.in++
+    else if (intro.direction === 'outbound' || intro.direction === 'outbound_internal') f.out++
+    flowCounts.set(row.entity_id, f)
+  }
+  const flowById: Record<string, 'both' | 'in' | 'out' | 'peripheral'> = {}
+  for (const [id, f] of flowCounts) {
+    flowById[id] = f.in > 0 && f.out > 0 ? 'both' : f.in > 0 ? 'in' : f.out > 0 ? 'out' : 'peripheral'
+  }
+
+  return <NetworkClient nodes={nodes} edges={edges} flowById={flowById} />
 }
