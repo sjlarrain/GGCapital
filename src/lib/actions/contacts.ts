@@ -85,6 +85,19 @@ export async function restoreContact(id: string, userId: string) {
   revalidatePath('/contacts')
 }
 
+export async function hardDeleteContact(id: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') throw new Error('Admin only')
+
+  const { error } = await supabase.from('contacts').delete().eq('id', id)
+  if (error) throw error
+  revalidatePath('/contacts')
+  revalidatePath('/trash')
+}
+
 export async function checkContactDuplicate(name: string, excludeId?: string) {
   const supabase = await createClient()
   let query = supabase

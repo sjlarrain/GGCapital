@@ -11,23 +11,13 @@ export const dynamic = 'force-dynamic'
  *
  * Two read-only surfaces over the live views (v_constellation_edges,
  * v_network_leaderboard). Correct the instant any intro/company changes — no
- * refresh, no materialization. Admin-only (same pattern as /admin) — narrower
- * than network:read/write, which is per-user allowlisted for MCP access.
+ * refresh, no materialization. Open to any logged-in user — narrower access
+ * (network:read/write for MCP) remains per-user allowlisted separately.
  */
 export default async function NetworkPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') {
-    redirect('/not-found')
-  }
 
   const [edgesRes, leaderboardRes] = await Promise.all([
     supabaseAdmin.from('v_constellation_edges').select('source_entity_id, target_entity_id, weight'),

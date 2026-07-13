@@ -65,7 +65,7 @@ function Pre({ value }: { value: unknown }) {
   )
 }
 
-export default function TriageDetail({ event, log }: { event: StagingEvent; log: LogRow[] }) {
+export default function TriageDetail({ event, log, isAdmin }: { event: StagingEvent; log: LogRow[]; isAdmin: boolean }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -82,7 +82,7 @@ export default function TriageDetail({ event, log }: { event: StagingEvent; log:
   )
 
   const isTerminal = event.status === 'promoted' || event.status === 'rejected'
-  const canPromote = event.status === 'ready'
+  const canPromote = event.status === 'ready' && isAdmin
   const hasCompanyId = !!(initCompany as Json).id
 
   const run = (fn: () => Promise<unknown>) => {
@@ -226,7 +226,7 @@ export default function TriageDetail({ event, log }: { event: StagingEvent; log:
             <button
               className="button is-success is-small"
               disabled={pending || !canPromote}
-              title={canPromote ? '' : 'Event must be "ready" to promote'}
+              title={!isAdmin ? 'Admin only' : canPromote ? '' : 'Event must be "ready" to promote'}
               onClick={() => run(() => promoteStagingEventAction(event.id))}
             >
               Promote

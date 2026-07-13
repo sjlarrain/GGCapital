@@ -85,6 +85,29 @@ export async function softDeleteMeeting(id: string, userId: string) {
   revalidatePath('/meetings')
 }
 
+export async function restoreMeeting(id: string, userId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('meetings')
+    .update({ deleted_at: null, updated_by: userId })
+    .eq('id', id)
+  if (error) throw error
+  revalidatePath('/meetings')
+}
+
+export async function hardDeleteMeeting(id: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') throw new Error('Admin only')
+
+  const { error } = await supabase.from('meetings').delete().eq('id', id)
+  if (error) throw error
+  revalidatePath('/meetings')
+  revalidatePath('/trash')
+}
+
 export async function setMeetingParticipants(meetingId: string, contactIds: string[]) {
   const supabase = await createClient()
   await supabase.from('meeting_participants').delete().eq('meeting_id', meetingId)

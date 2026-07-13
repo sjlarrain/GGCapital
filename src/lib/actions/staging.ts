@@ -116,10 +116,14 @@ export async function classifyStagingEvent(id: string) {
 /**
  * Promote from the Triage UI. The reviewer is always human here, so the
  * agent/auto-promote gate does not apply — only the status === 'ready' gate,
- * enforced both here and (race-safely) inside the RPC.
+ * enforced both here and (race-safely) inside the RPC. Promotion writes into
+ * the real CRM tables, so it stays admin-only, mirroring the REST API's
+ * staging:promote scope restriction.
  */
 export async function promoteStagingEventAction(id: string) {
-  const { user } = await requireUser()
+  const { supabase, user } = await requireUser()
+  const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') throw new Error('Admin only')
   try {
     const result = await promoteViaRpc(id, user.id)
     revalidatePath('/triage')

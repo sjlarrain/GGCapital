@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 import StatusBadge from './StatusBadge'
+import Modal from '@/components/ui/Modal'
 import { STAGING_STATUSES, type StagingStatus } from '@/lib/schemas/staging'
 
 type EventRow = {
@@ -24,6 +25,7 @@ const STATUS_LABEL: Record<StagingStatus, string> = {
 export default function TriageTable({ events }: { events: EventRow[] }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'' | StagingStatus>('')
+  const [infoOpen, setInfoOpen] = useState(false)
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {}
@@ -51,7 +53,18 @@ export default function TriageTable({ events }: { events: EventRow[] }) {
       <div className="level mb-4">
         <div className="level-left">
           <div>
-            <h1 className="title is-4 mb-0">Triage</h1>
+            <h1 className="title is-4 mb-0">
+              Triage
+              <button
+                className="button is-small is-ghost"
+                style={{ verticalAlign: 'middle', marginLeft: 6 }}
+                aria-label="What is Triage?"
+                title="What is Triage?"
+                onClick={() => setInfoOpen(true)}
+              >
+                ⓘ
+              </button>
+            </h1>
             <p className="is-size-7 has-text-grey">{filtered.length} of {events.length} staged events</p>
           </div>
         </div>
@@ -132,6 +145,23 @@ export default function TriageTable({ events }: { events: EventRow[] }) {
           </tbody>
         </table>
       </div>
+
+      <Modal open={infoOpen} onClose={() => setInfoOpen(false)} title="What is Triage?">
+        <p className="mb-3">
+          Triage is the review queue for events an AI agent has extracted from Gmail —
+          proposed new contacts, companies, or meetings — before anything touches the real CRM.
+        </p>
+        <p className="mb-3">
+          Each row is a staged event. Open one to check or edit the extracted fields, then either:
+        </p>
+        <ul className="mb-3" style={{ paddingLeft: '1.25rem', listStyle: 'disc' }}>
+          <li><strong>Promote</strong> — writes it into Contacts/Companies/Meetings (admin only).</li>
+          <li><strong>Reject</strong> — discards it, with an optional note explaining why.</li>
+        </ul>
+        <p className="has-text-grey is-size-7">
+          Status moves through Pending → Classified → Ready (or Needs info) → Promoted/Rejected.
+        </p>
+      </Modal>
     </>
   )
 }

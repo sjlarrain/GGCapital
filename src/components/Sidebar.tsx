@@ -15,11 +15,12 @@ const navItems = [
   { href: '/contacts', label: 'Contacts', icon: '👤' },
   { href: '/meetings', label: 'Meetings', icon: '📅' },
   { href: '/tags', label: 'Tags', icon: '🏷' },
+  { href: '/triage', label: 'Triage', icon: '🗂' },
+  { href: '/network', label: 'Network', icon: '🕸' },
+  { href: '/trash', label: 'Trash', icon: '🗑' },
 ]
 
 const adminItems = [
-  { href: '/triage', label: 'Triage', icon: '🗂' },
-  { href: '/network', label: 'Network', icon: '🕸' },
   { href: '/feedback', label: 'Feedback', icon: '💬' },
   { href: '/admin', label: 'Admin', icon: '⚙' },
 ]

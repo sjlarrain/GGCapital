@@ -73,6 +73,19 @@ export async function restoreCompany(id: string, userId: string) {
   revalidatePath('/companies')
 }
 
+export async function hardDeleteCompany(id: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') throw new Error('Admin only')
+
+  const { error } = await supabase.from('companies').delete().eq('id', id)
+  if (error) throw error
+  revalidatePath('/companies')
+  revalidatePath('/trash')
+}
+
 export async function checkCompanyDuplicate(name: string, excludeId?: string) {
   const supabase = await createClient()
   let query = supabase

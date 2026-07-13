@@ -14,7 +14,7 @@ export default async function TriageDetailPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) notFound()
   const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') notFound()
+  const isAdmin = profile?.role === 'admin'
 
   const { id } = await params
 
@@ -30,6 +30,7 @@ export default async function TriageDetailPage({
     <TriageDetail
       event={event as Parameters<typeof TriageDetail>[0]['event']}
       log={(log ?? []) as Parameters<typeof TriageDetail>[0]['log']}
+      isAdmin={isAdmin}
     />
   )
 }
