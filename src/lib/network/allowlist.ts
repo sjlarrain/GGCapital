@@ -38,9 +38,20 @@ function parseAllowlist(): Set<string> {
 // Parsed once per server process; env is fixed for the process lifetime.
 const ALLOWED = parseAllowlist()
 
-/** Is this user id permitted to hold and use the network:* scopes? */
+/** Is this user id on the explicit network allowlist (env-configured)? */
 export function isNetworkUser(userId: string | null | undefined): boolean {
   return !!userId && ALLOWED.has(userId)
+}
+
+/**
+ * May this user hold and use the network:* scopes? True for admins (role comes
+ * from the DB, so this works regardless of whether NETWORK_ALLOWLIST is set in
+ * the deploy) OR for anyone on the explicit allowlist (which additionally grants
+ * non-admin daily operators). This is the single predicate the grant surfaces
+ * (PAT minting, OAuth consent, the token UI) and the MCP runtime guard share.
+ */
+export function canUseNetwork(userId: string | null | undefined, role: string | null | undefined): boolean {
+  return role === 'admin' || isNetworkUser(userId)
 }
 
 /** True once at least one user id is configured (used for help text / diagnostics). */

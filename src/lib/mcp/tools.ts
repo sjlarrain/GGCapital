@@ -19,7 +19,7 @@ import { z } from 'zod'
 
 import { hasScope, type AuthContext, type Scope } from '@/app/api/v1/_lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { isNetworkUser } from '@/lib/network/allowlist'
+import { canUseNetwork } from '@/lib/network/allowlist'
 import { resolveCompany } from '@/lib/network/resolve'
 import { normName } from '@/lib/staging/mappings'
 import {
@@ -68,7 +68,7 @@ function guard(extra: Extra, scope: Scope): { ctx: AuthContext } | { error: Call
 function networkGuard(extra: Extra, scope: Scope): { ctx: AuthContext } | { error: CallToolResult } {
   const g = guard(extra, scope)
   if ('error' in g) return g
-  if (!isNetworkUser(g.ctx.userId)) return { error: toolErr('Forbidden: not authorized for network intelligence') }
+  if (!canUseNetwork(g.ctx.userId, g.ctx.role)) return { error: toolErr('Forbidden: not authorized for network intelligence') }
   return g
 }
 

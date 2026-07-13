@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { listApiTokens } from '@/lib/actions/tokens'
-import { isNetworkUser } from '@/lib/network/allowlist'
+import { canUseNetwork } from '@/lib/network/allowlist'
 import TokensClient from './TokensClient'
 
 export default async function TokensPage() {
@@ -21,7 +21,7 @@ export default async function TokensPage() {
     <TokensClient
       initialTokens={tokens as Parameters<typeof TokensClient>[0]['initialTokens']}
       userRole={(profile?.role ?? 'user') as 'admin' | 'user'}
-      canGrantNetwork={isNetworkUser(user.id)}
+      canGrantNetwork={canUseNetwork(user.id, profile?.role)}
     />
   )
 }

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getClient, isRegisteredRedirect, createAuthCode, OAUTH_SCOPES, type OAuthClient } from '@/lib/oauth/store'
 import { ROLE_SCOPES } from '@/app/api/v1/_lib/auth'
-import { isNetworkUser, NETWORK_SCOPES } from '@/lib/network/allowlist'
+import { canUseNetwork, NETWORK_SCOPES } from '@/lib/network/allowlist'
 import type { Scope } from '@/lib/schemas/token'
 
 export const runtime = 'nodejs'
@@ -34,11 +34,11 @@ function errorRedirect(redirectUri: string, error: string, state: string | null,
 /**
  * Requested scopes ∩ (eligible defaults ∩ OAUTH_SCOPES); empty request → all
  * eligible defaults. Eligible = the user's role defaults, plus network:* when the
- * user is on the network allowlist (network:* is granted per-user, not by role).
+ * user may use network (admin role, or on the per-user allowlist).
  */
 function grantedScopes(requested: string | null, role: 'admin' | 'user', userId: string): Scope[] {
   const base = ROLE_SCOPES[role] ?? ROLE_SCOPES.user
-  const eligible = isNetworkUser(userId) ? [...base, ...NETWORK_SCOPES] : base
+  const eligible = canUseNetwork(userId, role) ? [...base, ...NETWORK_SCOPES] : base
   const roleScopes = eligible.filter((s) => OAUTH_SCOPES.includes(s))
   if (!requested?.trim()) return roleScopes
   const req = requested.split(/\s+/).filter(Boolean)

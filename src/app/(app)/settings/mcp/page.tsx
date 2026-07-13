@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { isNetworkUser } from '@/lib/network/allowlist'
+import { canUseNetwork } from '@/lib/network/allowlist'
 
 export default async function McpSettingsPage() {
   const supabase = await createClient()
@@ -16,7 +16,7 @@ export default async function McpSettingsPage() {
     .single()
 
   const isAdmin = profile?.role === 'admin'
-  const canGrantNetwork = isNetworkUser(user.id)
+  const canGrantNetwork = canUseNetwork(user.id, profile?.role)
 
   // Admins get here to roll out/test the CRM Skill; network-allowlisted users
   // (who may not be admins) also need this page for the connector instructions
