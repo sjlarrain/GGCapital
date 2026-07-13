@@ -14,12 +14,12 @@ const navItems = [
   { href: '/companies?view=investors', label: 'Investors & Network', icon: '📊' },
   { href: '/contacts', label: 'Contacts', icon: '👤' },
   { href: '/meetings', label: 'Meetings', icon: '📅' },
-  { href: '/network', label: 'Network', icon: '🕸' },
   { href: '/tags', label: 'Tags', icon: '🏷' },
 ]
 
 const adminItems = [
   { href: '/triage', label: 'Triage', icon: '🗂' },
+  { href: '/network', label: 'Network', icon: '🕸' },
   { href: '/feedback', label: 'Feedback', icon: '💬' },
   { href: '/admin', label: 'Admin', icon: '⚙' },
 ]

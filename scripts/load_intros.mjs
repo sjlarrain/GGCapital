@@ -86,7 +86,7 @@ function loadEnv() {
   } catch {
     return // fine — env may already be set in the shell/CI
   }
-  for (const line of raw.split('\n')) {
+  for (const line of raw.split(/\r?\n/)) {
     const m = line.match(/^([^=]+)=(.*)$/)
     if (m && !(m[1].trim() in process.env)) process.env[m[1].trim()] = m[2].trim()
   }
