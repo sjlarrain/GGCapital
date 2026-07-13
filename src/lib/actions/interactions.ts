@@ -116,3 +116,13 @@ export async function submitFeedback(description: string, userId: string) {
     .insert({ description, created_by: userId })
   if (error) throw error
 }
+
+export async function setFeedbackDone(id: string, done: boolean) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('feedback')
+    .update({ done })
+    .eq('id', id)
+  if (error) throw error
+  revalidatePath('/feedback')
+}

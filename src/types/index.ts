@@ -142,6 +142,7 @@ export interface Feedback {
   description: string
   created_by: string
   created_at: string
+  done: boolean
 }
 
 // ── API Tokens (migration 010) ────────────────────────────

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { formatDate } from '@/lib/utils'
+import FeedbackList from '@/components/FeedbackList'
 
 export default async function FeedbackPage() {
   const supabase = await createClient()
@@ -22,13 +22,13 @@ export default async function FeedbackPage() {
     .order('created_at', { ascending: false })
 
   const userIds = [...new Set((feedbackList ?? []).map((f) => f.created_by as string))]
-  let profileMap = new Map<string, string>()
+  let profileMap: Record<string, string> = {}
   if (userIds.length > 0) {
     const { data: profiles } = await supabase
       .from('user_profiles')
       .select('id, email')
       .in('id', userIds)
-    profileMap = new Map((profiles ?? []).map((p) => [p.id, p.email]))
+    profileMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p.email]))
   }
 
   return (
@@ -40,29 +40,7 @@ export default async function FeedbackPage() {
         </p>
       </div>
 
-      {(feedbackList ?? []).length === 0 && (
-        <div className="notification is-light">
-          No feedback submitted yet.
-        </div>
-      )}
-
-      <div>
-        {(feedbackList ?? []).map((f) => (
-          <div key={f.id} className="box mb-3">
-            <p className="mb-3" style={{ whiteSpace: 'pre-wrap' }}>{f.description}</p>
-            <div className="level is-mobile">
-              <div className="level-left">
-                <span className="tag is-light is-size-7">
-                  {profileMap.get(f.created_by as string) ?? 'Unknown user'}
-                </span>
-              </div>
-              <div className="level-right">
-                <span className="is-size-7 has-text-grey">{formatDate(f.created_at)}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      <FeedbackList feedbackList={feedbackList ?? []} profileMap={profileMap} />
     </div>
   )
 }
