@@ -104,131 +104,195 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{company.description}</ReactMarkdown>
           </div>
         )}
-        <div className="columns is-multiline is-size-7">
-          {!isFund && (
-            <div className="column is-half">
-              <span className="has-text-grey">Type: </span>
-              <span>{tagName(company.type_id, tags.types) ?? '—'}</span>
+        {isFund ? (
+          <>
+            <div className="columns is-multiline is-size-7">
+              {(company as { country?: string | null }).country && (
+                <div className="column is-half">
+                  <span className="has-text-grey">Country: </span>
+                  <span>{(company as { country?: string | null }).country}</span>
+                </div>
+              )}
+              {company.website && (
+                <div className="column is-half">
+                  <span className="has-text-grey">Website: </span>
+                  <a href={company.website.startsWith('http') ? company.website : `https://${company.website}`} target="_blank" rel="noreferrer">{company.website}</a>
+                </div>
+              )}
+              <div className="column is-half">
+                <span className="has-text-grey">Status: </span>
+                <span>{tagName(company.status_id, tags.statuses) ?? '—'}</span>
+              </div>
+              {fmtMusd(company.round_size_musd) && (
+                <div className="column is-half">
+                  <span className="has-text-grey">Fund Size: </span>
+                  <span>{fmtMusd(company.round_size_musd)}</span>
+                </div>
+              )}
             </div>
-          )}
-          {isFund && (company as { country?: string | null }).country && (
-            <div className="column is-half">
-              <span className="has-text-grey">Country: </span>
-              <span>{(company as { country?: string | null }).country}</span>
-            </div>
-          )}
-          {companyStages.length > 0 && (
-            <div className="column is-half">
-              <p className="has-text-grey mb-1">{isFund ? 'Investment Stage' : 'Stage'}</p>
-              <div className="tags">
-                {companyStages.map((n) => <Badge key={n} variant="yellow">{n}</Badge>)}
+            {((company.industry_ids ?? []) as string[]).length > 0 && (
+              <div className="mt-2">
+                <p className="has-text-grey is-size-7 mb-1">Thesis</p>
+                <div className="tags">
+                  {(company.industry_ids as string[]).map((tagId: string) => (
+                    <Badge key={tagId} variant="blue">
+                      {tags.industries.find((t) => t.id === tagId)?.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {((company.region_ids ?? []) as string[]).length > 0 && (
+              <div className="mt-2">
+                <p className="has-text-grey is-size-7 mb-1">Investment Geography</p>
+                <div className="tags">
+                  {(company.region_ids as string[]).map((tagId: string) => (
+                    <Badge key={tagId} variant="green">
+                      {tags.regions.find((t) => t.id === tagId)?.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {companyStages.length > 0 && (
+              <div className="mt-2">
+                <p className="has-text-grey is-size-7 mb-1">Investment Stage</p>
+                <div className="tags">
+                  {companyStages.map((n) => <Badge key={n} variant="yellow">{n}</Badge>)}
+                </div>
+              </div>
+            )}
+            {((company.files ?? []) as string[]).length > 0 && (
+              <div className="mt-3 is-size-7">
+                <span className="has-text-grey">Files: </span>
+                {(company.files as string[]).map((f, i) => (
+                  <span key={i}>
+                    {i > 0 && ', '}
+                    <a href={f} target="_blank" rel="noreferrer">{f.split('/').pop() || f}</a>
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="columns is-multiline is-size-7">
+              <div className="column is-half">
+                <span className="has-text-grey">Type: </span>
+                <span>{tagName(company.type_id, tags.types) ?? '—'}</span>
+              </div>
+              {companyStages.length > 0 && (
+                <div className="column is-half">
+                  <p className="has-text-grey mb-1">Stage</p>
+                  <div className="tags">
+                    {companyStages.map((n) => <Badge key={n} variant="yellow">{n}</Badge>)}
+                  </div>
+                </div>
+              )}
+              {investmentThesis.length > 0 && (
+                <div className="column is-half">
+                  <p className="has-text-grey mb-1">Investment focus</p>
+                  <div className="tags">
+                    {investmentThesis.map((n) => <Badge key={n} variant="blue">{n}</Badge>)}
+                  </div>
+                </div>
+              )}
+              {company.website && (
+                <div className="column is-half">
+                  <span className="has-text-grey">Website: </span>
+                  <a href={company.website.startsWith('http') ? company.website : `https://${company.website}`} target="_blank" rel="noreferrer">{company.website}</a>
+                </div>
+              )}
+              {fmtMusd(company.round_size_musd) && (
+                <div className="column is-half">
+                  <span className="has-text-grey">Round / fund size: </span>
+                  <span>{fmtMusd(company.round_size_musd)}</span>
+                </div>
+              )}
+              {fmtMusd(company.valuation_musd) && (
+                <div className="column is-half">
+                  <span className="has-text-grey">Valuation: </span>
+                  <span>{fmtMusd(company.valuation_musd)}</span>
+                </div>
+              )}
+              {company.legal && (
+                <div className="column is-half">
+                  <span className="has-text-grey">Legal: </span>
+                  <span>{company.legal}</span>
+                </div>
+              )}
+              {company.deal_date && (
+                <div className="column is-half">
+                  <span className="has-text-grey">Deal date: </span>
+                  <span>{formatDate(company.deal_date)}</span>
+                </div>
+              )}
+              {parent && (
+                <div className="column is-half">
+                  <span className="has-text-grey">Managed by: </span>
+                  <Link href={`/companies/${parent.id}`}>{parent.name}</Link>
+                </div>
+              )}
+              <div className="column is-half">
+                <span className="has-text-grey">Status: </span>
+                <span>{tagName(company.status_id, tags.statuses) ?? '—'}</span>
+              </div>
+              <div className="column is-half">
+                <span className="has-text-grey">Source: </span>
+                <span>{company.source ?? '—'}</span>
+              </div>
+              <div className="column is-half">
+                <span className="has-text-grey">Created: </span>
+                <span>{formatDate(company.created_at)}</span>
               </div>
             </div>
-          )}
-          {!isFund && investmentThesis.length > 0 && (
-            <div className="column is-half">
-              <p className="has-text-grey mb-1">Investment focus</p>
-              <div className="tags">
-                {investmentThesis.map((n) => <Badge key={n} variant="blue">{n}</Badge>)}
+            {((company.industry_ids ?? []) as string[]).length > 0 && (
+              <div className="mt-2">
+                <p className="has-text-grey is-size-7 mb-1">Industries</p>
+                <div className="tags">
+                  {(company.industry_ids as string[]).map((tagId: string) => (
+                    <Badge key={tagId} variant="blue">
+                      {tags.industries.find((t) => t.id === tagId)?.name}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-          {company.website && (
-            <div className="column is-half">
-              <span className="has-text-grey">Website: </span>
-              <a href={company.website.startsWith('http') ? company.website : `https://${company.website}`} target="_blank" rel="noreferrer">{company.website}</a>
-            </div>
-          )}
-          {fmtMusd(company.round_size_musd) && (
-            <div className="column is-half">
-              <span className="has-text-grey">Round / fund size: </span>
-              <span>{fmtMusd(company.round_size_musd)}</span>
-            </div>
-          )}
-          {fmtMusd(company.valuation_musd) && (
-            <div className="column is-half">
-              <span className="has-text-grey">Valuation: </span>
-              <span>{fmtMusd(company.valuation_musd)}</span>
-            </div>
-          )}
-          {company.legal && (
-            <div className="column is-half">
-              <span className="has-text-grey">Legal: </span>
-              <span>{company.legal}</span>
-            </div>
-          )}
-          {company.deal_date && (
-            <div className="column is-half">
-              <span className="has-text-grey">Deal date: </span>
-              <span>{formatDate(company.deal_date)}</span>
-            </div>
-          )}
-          {parent && (
-            <div className="column is-half">
-              <span className="has-text-grey">Managed by: </span>
-              <Link href={`/companies/${parent.id}`}>{parent.name}</Link>
-            </div>
-          )}
-          <div className="column is-half">
-            <span className="has-text-grey">Status: </span>
-            <span>{tagName(company.status_id, tags.statuses) ?? '—'}</span>
-          </div>
-          {!isFund && (
-            <div className="column is-half">
-              <span className="has-text-grey">Source: </span>
-              <span>{company.source ?? '—'}</span>
-            </div>
-          )}
-          <div className="column is-half">
-            <span className="has-text-grey">Created: </span>
-            <span>{formatDate(company.created_at)}</span>
-          </div>
-        </div>
-        {((company.industry_ids ?? []) as string[]).length > 0 && (
-          <div className="mt-2">
-            <p className="has-text-grey is-size-7 mb-1">{isFund ? 'Thesis' : 'Industries'}</p>
-            <div className="tags">
-              {(company.industry_ids as string[]).map((tagId: string) => (
-                <Badge key={tagId} variant="blue">
-                  {tags.industries.find((t) => t.id === tagId)?.name}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-        {((company.region_ids ?? []) as string[]).length > 0 && (
-          <div className="mt-2">
-            <p className="has-text-grey is-size-7 mb-1">{isFund ? 'Investment Geography' : 'Regions'}</p>
-            <div className="tags">
-              {(company.region_ids as string[]).map((tagId: string) => (
-                <Badge key={tagId} variant="green">
-                  {tags.regions.find((t) => t.id === tagId)?.name}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-        {((company.files ?? []) as string[]).length > 0 && (
-          <div className="mt-3 is-size-7">
-            <span className="has-text-grey">Files: </span>
-            {(company.files as string[]).map((f, i) => (
-              <span key={i}>
-                {i > 0 && ', '}
-                <a href={f} target="_blank" rel="noreferrer">{f.split('/').pop() || f}</a>
-              </span>
-            ))}
-          </div>
-        )}
-        {(funds ?? []).length > 0 && (
-          <div className="mt-3 is-size-7">
-            <span className="has-text-grey">Funds: </span>
-            {(funds ?? []).map((f, i) => (
-              <span key={f.id}>
-                {i > 0 && ', '}
-                <Link href={`/companies/${f.id}`}>{f.name}</Link>
-              </span>
-            ))}
-          </div>
+            )}
+            {((company.region_ids ?? []) as string[]).length > 0 && (
+              <div className="mt-2">
+                <p className="has-text-grey is-size-7 mb-1">Regions</p>
+                <div className="tags">
+                  {(company.region_ids as string[]).map((tagId: string) => (
+                    <Badge key={tagId} variant="green">
+                      {tags.regions.find((t) => t.id === tagId)?.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {((company.files ?? []) as string[]).length > 0 && (
+              <div className="mt-3 is-size-7">
+                <span className="has-text-grey">Files: </span>
+                {(company.files as string[]).map((f, i) => (
+                  <span key={i}>
+                    {i > 0 && ', '}
+                    <a href={f} target="_blank" rel="noreferrer">{f.split('/').pop() || f}</a>
+                  </span>
+                ))}
+              </div>
+            )}
+            {(funds ?? []).length > 0 && (
+              <div className="mt-3 is-size-7">
+                <span className="has-text-grey">Funds: </span>
+                {(funds ?? []).map((f, i) => (
+                  <span key={f.id}>
+                    {i > 0 && ', '}
+                    <Link href={`/companies/${f.id}`}>{f.name}</Link>
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 

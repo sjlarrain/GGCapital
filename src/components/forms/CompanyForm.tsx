@@ -4,9 +4,11 @@ import { useRouter } from 'next/navigation'
 import Alert from '@/components/ui/Alert'
 import TagPicker from '@/components/TagPicker'
 import MarkdownEditor from '@/components/MarkdownEditor'
+import SearchableSelect from '@/components/SearchableSelect'
 import { createCompany, updateCompany, checkCompanyDuplicate } from '@/lib/actions/companies'
 import { createTag } from '@/lib/actions/tags'
 import { createClient } from '@/lib/supabase/client'
+import { COUNTRIES } from '@/lib/countries'
 import type { Company, TagCatalogs } from '@/types'
 
 interface CompanyFormProps {
@@ -55,7 +57,11 @@ export default function CompanyForm({ company, tags, userId, mode = 'company', o
   const visibleStages = isFund
     ? tagState.stages.filter((s) => FUND_STAGE_NAMES.includes(s.name) || stageIds.includes(s.id))
     : tagState.stages
-  const FUND_STATUS_NAMES = ['Approved', 'Rejected', 'Miss', 'Stand-by']
+  const FUND_STATUS_NAMES = ['Active', 'Approved', 'Rejected', 'Miss', 'Stand-by']
+  const countryOptions = (country && !(COUNTRIES as readonly string[]).includes(country)
+    ? [country, ...COUNTRIES]
+    : COUNTRIES
+  ).map((c) => ({ id: c, label: c }))
   const visibleStatuses = isFund
     ? tagState.statuses.filter((s) => FUND_STATUS_NAMES.includes(s.name) || statusId.includes(s.id))
     : tagState.statuses
@@ -177,7 +183,13 @@ export default function CompanyForm({ company, tags, userId, mode = 'company', o
         <div className="field">
           <label className="label">Country of Origin</label>
           <div className="control">
-            <input className="input" placeholder="e.g. Chile, USA, Canada" value={country} onChange={(e) => setCountry(e.target.value)} />
+            <SearchableSelect
+              options={countryOptions}
+              value={country}
+              onChange={setCountry}
+              placeholder="Select country…"
+              clearLabel="No country"
+            />
           </div>
         </div>
       )}

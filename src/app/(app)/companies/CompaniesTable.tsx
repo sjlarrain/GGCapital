@@ -49,6 +49,7 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
   const [stageFilter, setStageFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [regionFilter, setRegionFilter] = useState('')
+  const [countryFilter, setCountryFilter] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const isFundsView = defaultView === 'funds'
@@ -61,6 +62,11 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
   const formMode: 'fund' | 'investor' | 'company' = isFundsView ? 'fund'
     : defaultView === 'investors' ? 'investor'
     : 'company'
+
+  const countryOptions = useMemo(() => {
+    const names = Array.from(new Set(companies.map((c) => c.country).filter((c): c is string => !!c)))
+    return names.sort((a, b) => a.localeCompare(b)).map((c) => ({ id: c, label: c }))
+  }, [companies])
 
   const filtered = useMemo(() => {
     // Compute type-based view filter
@@ -79,6 +85,7 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
     if (stageFilter) list = list.filter((c) => effStageIds(c).includes(stageFilter))
     if (statusFilter) list = list.filter((c) => c.status_id === statusFilter)
     if (regionFilter) list = list.filter((c) => (c.region_ids ?? []).includes(regionFilter))
+    if (countryFilter) list = list.filter((c) => c.country === countryFilter)
     if (search) {
       const q = search.toLowerCase()
       list = list.filter((c) => c.name.toLowerCase().includes(q))
@@ -97,7 +104,7 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
       }
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
     })
-  }, [companies, search, sortKey, sortDir, stageFilter, statusFilter, tags, defaultView])
+  }, [companies, search, sortKey, sortDir, stageFilter, statusFilter, regionFilter, countryFilter, tags, defaultView])
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -166,6 +173,18 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
                 onChange={setRegionFilter}
                 placeholder="All geographies"
                 clearLabel="All geographies"
+                size="small"
+              />
+            </div>
+          )}
+          {isFundsView && (
+            <div className="level-item">
+              <SearchableSelect
+                options={countryOptions}
+                value={countryFilter}
+                onChange={setCountryFilter}
+                placeholder="All countries"
+                clearLabel="All countries"
                 size="small"
               />
             </div>
