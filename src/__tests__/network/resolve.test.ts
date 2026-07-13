@@ -223,9 +223,9 @@ describe('classifyRole', () => {
 
 describe('degree computation', () => {
   const edges: ConstellationEdge[] = [
-    { source_company_id: 'a', target_company_id: 'b', weight: 2 },
-    { source_company_id: 'a', target_company_id: 'c', weight: 1 },
-    { source_company_id: 'b', target_company_id: 'c', weight: 3 },
+    { source_entity_id: 'a', target_entity_id: 'b', weight: 2 },
+    { source_entity_id: 'a', target_entity_id: 'c', weight: 1 },
+    { source_entity_id: 'b', target_entity_id: 'c', weight: 3 },
   ]
 
   it('counts distinct neighbors', () => {
@@ -245,20 +245,20 @@ describe('degree computation', () => {
 
 describe('buildNodes', () => {
   const leaderboard: LeaderboardRow[] = [
-    { company_id: 'a', name: 'Alpha', intros_facilitated: 1, intros_received: 1 },
-    { company_id: 'b', name: 'Bravo', intros_facilitated: 5, intros_received: 0 },
-    { company_id: 'c', name: 'Charlie', intros_facilitated: 0, intros_received: 2 },
+    { entity_id: 'a', name: 'Alpha', company_id: 'a', is_company: true, intros_facilitated: 1, intros_received: 1 },
+    { entity_id: 'b', name: 'Bravo', company_id: null, is_company: false, intros_facilitated: 5, intros_received: 0 },
+    { entity_id: 'c', name: 'Charlie', company_id: 'c', is_company: true, intros_facilitated: 0, intros_received: 2 },
   ]
   const edges: ConstellationEdge[] = [
-    { source_company_id: 'a', target_company_id: 'b', weight: 1 },
-    { source_company_id: 'a', target_company_id: 'c', weight: 1 },
+    { source_entity_id: 'a', target_entity_id: 'b', weight: 1 },
+    { source_entity_id: 'a', target_entity_id: 'c', weight: 1 },
   ]
 
   it('enriches with role + degree and sorts by facilitated desc', () => {
     const nodes = buildNodes(leaderboard, edges)
-    expect(nodes.map((n) => n.company_id)).toEqual(['b', 'a', 'c'])
-    expect(nodes.find((n) => n.company_id === 'a')).toMatchObject({ role: 'connector', degree: 2 })
-    expect(nodes.find((n) => n.company_id === 'b')).toMatchObject({ role: 'facilitator', degree: 1 })
-    expect(nodes.find((n) => n.company_id === 'c')).toMatchObject({ role: 'beneficiary', degree: 1 })
+    expect(nodes.map((n) => n.entity_id)).toEqual(['b', 'a', 'c'])
+    expect(nodes.find((n) => n.entity_id === 'a')).toMatchObject({ role: 'connector', degree: 2, is_company: true })
+    expect(nodes.find((n) => n.entity_id === 'b')).toMatchObject({ role: 'facilitator', degree: 1, is_company: false })
+    expect(nodes.find((n) => n.entity_id === 'c')).toMatchObject({ role: 'beneficiary', degree: 1 })
   })
 })

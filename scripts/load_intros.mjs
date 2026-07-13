@@ -1,51 +1,34 @@
 #!/usr/bin/env node
-// Network Intelligence — bulk intro loader (Phase 5)
+// Network Intelligence — bulk intro loader
 //
-// Loads intros from a CSV export into the CRM by calling the SAME MCP tools the
-// Skill uses (network_search_companies / staging_ingest / network_create_intro)
-// over a real MCP session — not by writing to Supabase directly — so dedup and
-// staging behavior is identical whether a human runs the Skill interactively or
-// this script runs a file. This also exercises the Phase 3 auth/scope/allowlist
-// path for real, which is the point: it's the first true end-to-end test.
+// Loads intros from a CSV export into the graph by calling the SAME MCP tool the
+// Skill uses (network_create_intro) over a real MCP session — not by writing to
+// Supabase directly — so behavior is identical whether a human runs the Skill
+// interactively or this script runs a file.
+//
+// The graph is a NODE graph, not a companies subset: network_create_intro turns
+// every party into a node. Names that resolve to a CRM company link to it; names
+// that don't become name-only nodes (deduped across intros). The tool NEVER
+// rejects and NEVER creates a CRM company — so there is no staging step and no
+// "held" rows here anymore. Promote the name-only nodes that matter to real
+// companies later (in the app, or via network_promote_entity).
 //
 // Usage:
 //   node scripts/load_intros.mjs path/to/intros.csv           # dry-run: report only
-//   node scripts/load_intros.mjs path/to/intros.csv --commit  # actually insert/stage
+//   node scripts/load_intros.mjs path/to/intros.csv --commit  # actually insert
 //
 // Requires in .env.local:
 //   NETWORK_LOADER_TOKEN=ggc_...   A PAT for an allowlisted user (see
 //                                  src/lib/network/allowlist.ts / NETWORK_ALLOWLIST)
-//                                  with network:read, network:write, staging:write.
-//   NETWORK_MCP_URL=...            Defaults to http://localhost:3000/api/mcp
-//   GG_INTERNAL_DOMAINS=ggcapital.com,gg.vc   (optional) email domains treated as
-//                                  GG's own, used to derive intro direction when a
-//                                  party/facilitator doesn't resolve to a company
-//                                  with is_internal=true (that flag isn't populated
-//                                  yet — see project memory). Comma-separated.
+//                                  with network:read + network:write.
+//   NETWORK_MCP_URL=...            Defaults to http://localhost:3000/api/mcp;
+//                                  point it at the deployed app to load prod.
 //
-// CSV ONLY, not .xlsx: this repo's other bulk-import script (import_bbdd.mjs) is
-// also CSV-only, and there's no XML/zip-parsing library installed here. Rather
-// than hand-roll an untested .xlsx reader against real financial-relationship
-// data with no genuine Excel file to validate it against, export your sheet as
-// CSV (File → Save As → CSV UTF-8) and point this script at that. If native
-// .xlsx support becomes worth it, add the `xlsx` npm package rather than
-// hand-rolling parsing — safer for real-world Excel quirks.
-//
-// Flow per row (mirrors src/lib/network/{resolve,roles}.ts and SKILL.md):
-//   1. parties come from side1/side2 columns (comma-separated) if present,
-//      else parsed from the subject line (A <> B, multi-company sides via / , & "and").
-//   2. each party name -> network_search_companies (4-tier resolve).
-//      matched -> collect company_id.  unmatched -> staging_ingest(new_company),
-//      idempotent per company name so re-running the file never double-stages.
-//   3. facilitator resolved the same way, leniently (never blocks the intro).
-//   4. direction: explicit `direction` column wins; else derived from
-//      internal/external of facilitator + parties (is_internal DB flag if the
-//      party resolved to a company, else GG_INTERNAL_DOMAINS email-domain guess).
-//   5. all parties resolved -> network_create_intro(source='bulk_excel',
-//      source_ref=<row's source_ref>) (idempotent — re-running is a no-op).
-//      else -> hold the row; report which companies must clear /triage first.
-//   6. print a summary: linked / newly staged / already staged / created /
-//      already-linked / held / warnings / errors.
+// CSV columns (normalize your export to these — see scripts/templates/intros-template.csv):
+//   subject (required), source_ref (required), date, facilitator, side1, side2, direction, notes
+//   - side1/side2: company name(s) per side; comma-separate multiples. If both are
+//     blank the subject line ("A <> B") is parsed for the two sides.
+//   - source_ref: stable unique key per intro (idempotency — re-running never duplicates).
 
 import { readFileSync } from 'fs'
 import { join, dirname } from 'path'
@@ -65,7 +48,7 @@ if (!filePath || argv.includes('--help') || argv.includes('-h')) {
   console.log(
     'Usage:\n' +
     '  node scripts/load_intros.mjs path/to/intros.csv           # dry-run: report only\n' +
-    '  node scripts/load_intros.mjs path/to/intros.csv --commit  # actually insert/stage\n\n' +
+    '  node scripts/load_intros.mjs path/to/intros.csv --commit  # actually insert\n\n' +
     'See scripts/templates/intros-template.csv for the expected columns.'
   )
   process.exit(filePath ? 0 : 1)
@@ -97,13 +80,11 @@ const MCP_URL = process.env.NETWORK_MCP_URL || 'http://localhost:3000/api/mcp'
 const TOKEN = process.env.NETWORK_LOADER_TOKEN
 if (!TOKEN) {
   console.error(
-    'Missing NETWORK_LOADER_TOKEN in .env.local — mint a PAT with network:read, ' +
-    'network:write, staging:write from Settings → Tokens (requires an allowlisted user).'
+    'Missing NETWORK_LOADER_TOKEN in .env.local — mint a PAT with network:read + ' +
+    'network:write from Settings → Tokens (requires an allowlisted user).'
   )
   process.exit(1)
 }
-const GG_INTERNAL_DOMAINS = (process.env.GG_INTERNAL_DOMAINS || '')
-  .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
 
 // ── CSV parser (verbatim from scripts/import_bbdd.mjs, for consistency) ────────
 function parseCSVLine(line) {
@@ -140,21 +121,14 @@ function validateHeaders(headers) {
   if (missing.length) throw new Error(`Missing required column(s): ${missing.join(', ')}`)
 }
 
-// ── pure helpers mirrored from src/lib/network/resolve.ts ──────────────────────
-// Plain Node scripts here don't run through the TS/Next toolchain (see
-// import_bbdd.mjs, which duplicates normName/splitComma the same way), so these
-// are kept in sync by hand. Keep behavior identical to resolve.ts.
-function normName(s) {
-  return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/\s+/g, ' ').trim()
-}
+// ── party parsing (mirrors src/lib/network/resolve.ts) ─────────────────────────
 /** side1/side2 COLUMN values: comma-separated multiples only (columns.md). */
 function splitColumnCompanies(s) {
   return !s ? [] : s.split(',').map((v) => v.trim()).filter(Boolean)
 }
 /** Subject-line SIDE text: richer delimiters, mirrors resolve.ts's splitSideCompanies. */
 function splitSubjectSideCompanies(side) {
-  return (side || '').split(/\s*(?:\/|,|&|\band\b)\s*/i).map((s) => s.trim()).filter(Boolean)
+  return (side || '').split(/\s*(?:\/|&|\band\b)\s*/i).map((s) => s.trim()).filter(Boolean)
 }
 /** Mirrors resolve.ts's parseSubject. */
 function parseSubjectSides(subject) {
@@ -165,11 +139,7 @@ function parseSubjectSides(subject) {
   const [left, ...rest] = parts
   return { side1: splitSubjectSideCompanies(left), side2: splitSubjectSideCompanies(rest.join(' ')) }
 }
-function emailDomain(raw) {
-  const at = (raw || '').indexOf('@')
-  if (at < 0) return null
-  return raw.slice(at + 1).trim().toLowerCase() || null
-}
+
 const DIRECTIONS = new Set(['outbound', 'outbound_internal', 'inbound', 'other'])
 
 // ── MCP client ───────────────────────────────────────────────────────────────
@@ -177,7 +147,7 @@ async function connectMcp() {
   const transport = new StreamableHTTPClientTransport(new URL(MCP_URL), {
     requestInit: { headers: { Authorization: `Bearer ${TOKEN}` } },
   })
-  const client = new Client({ name: 'load-intros-script', version: '1.0.0' }, { capabilities: {} })
+  const client = new Client({ name: 'load-intros-script', version: '2.0.0' }, { capabilities: {} })
   await client.connect(transport)
   return client
 }
@@ -187,69 +157,6 @@ async function callTool(client, name, args) {
   const text = res.content?.find((c) => c.type === 'text')?.text ?? ''
   if (res.isError) throw new Error(`${name}: ${text || 'unknown tool error'}`)
   try { return JSON.parse(text) } catch { return text }
-}
-
-// ── per-run caches (dedupe repeated company names across rows) ─────────────────
-const companyCache = new Map() // normName(name) -> { status, company_id?, name, internal? }
-
-async function resolveOrStage(client, name, stats) {
-  const key = normName(name)
-  if (!key) return null
-  if (companyCache.has(key)) return companyCache.get(key)
-
-  const matches = await callTool(client, 'network_search_companies', { query: name })
-  if (Array.isArray(matches) && matches.length > 0) {
-    const m = matches[0]
-    let internal = false
-    try {
-      const company = await callTool(client, 'crm_get_company', { id: m.company_id })
-      internal = !!company?.is_internal
-    } catch {
-      // crm:read missing or lookup failed — direction derivation degrades, not fatal.
-    }
-    const result = { status: 'resolved', company_id: m.company_id, name: m.name, match: m.match, internal }
-    companyCache.set(key, result)
-    stats.partiesLinked++
-    return result
-  }
-
-  // No confident match — genuinely new (or too ambiguous). Stage it, never create
-  // it directly. source_ref is derived from the normalized name (not the row), so
-  // the same company staged from different rows/files is staged exactly once.
-  const sourceRef = `bulk_intros:company:${key}`
-  let staged = { deduped: false }
-  if (COMMIT) {
-    staged = await callTool(client, 'staging_ingest', {
-      source: 'import', // staging_events.source enum — distinct from intros.source ('bulk_excel')
-      source_ref: sourceRef,
-      raw_payload: { name },
-      extracted: { name },
-      proposed_links: { company: { name } },
-      event_class: 'new_company',
-      confidence: 0.4,
-    })
-  }
-  const result = { status: 'staged', name, internal: false, deduped: !!staged.deduped }
-  companyCache.set(key, result)
-  if (staged.deduped) stats.companiesAlreadyStaged++
-  else stats.companiesNewlyStaged++
-  return result
-}
-
-function deriveDirection(row, facilitatorInternal, anyPartyInternal, warnings, lineNo) {
-  const explicit = (row.direction || '').trim().toLowerCase()
-  if (explicit) {
-    if (DIRECTIONS.has(explicit)) return explicit
-    warnings.push(`line ${lineNo}: unknown direction "${row.direction}" — deriving instead`)
-  }
-  if (!GG_INTERNAL_DOMAINS.length && !facilitatorInternal && !anyPartyInternal) {
-    warnings.push(`line ${lineNo}: no company is_internal=true and GG_INTERNAL_DOMAINS is unset — direction defaulted to "other", please verify`)
-    return 'other'
-  }
-  if (facilitatorInternal && !anyPartyInternal) return 'outbound'
-  if (facilitatorInternal && anyPartyInternal) return 'outbound_internal'
-  if (!facilitatorInternal && anyPartyInternal) return 'inbound'
-  return 'other'
 }
 
 // ── per-row processing ───────────────────────────────────────────────────────
@@ -271,67 +178,41 @@ async function processRow(client, row, lineNo, stats) {
   }
 
   const parties = []
-  const unresolvedNames = []
-  let anyPartyInternal = false
-  for (const [side, names] of [[1, side1Names], [2, side2Names]]) {
-    for (const name of names) {
-      const r = await resolveOrStage(client, name, stats)
-      if (r?.status === 'resolved') {
-        parties.push({ name: r.name, side, company_id: r.company_id })
-        if (r.internal) anyPartyInternal = true
-      } else {
-        unresolvedNames.push(name)
-      }
-    }
-  }
+  for (const name of side1Names) parties.push({ name, side: 1 })
+  for (const name of side2Names) parties.push({ name, side: 2 })
 
-  // Facilitator: resolved leniently (read-only lookup, never staged, never blocks).
+  // Direction: explicit column wins; otherwise default to 'other' (we no longer
+  // derive from is_internal — the node model doesn't need it, and this file's
+  // rows all carry an explicit direction).
+  let direction = (row.direction || '').trim().toLowerCase()
+  if (direction && !DIRECTIONS.has(direction)) {
+    stats.warnings.push(`line ${lineNo}: unknown direction "${row.direction}" — defaulting to "other"`)
+    direction = ''
+  }
+  if (!direction) direction = 'other'
+
   const facilitatorRaw = (row.facilitator || '').trim()
-  let facilitatorInternal = false
-  let facilitatorArg
-  if (facilitatorRaw) {
-    facilitatorArg = { name: facilitatorRaw }
-    const email = facilitatorRaw.includes('@') ? facilitatorRaw : null
-    if (email) facilitatorArg.email = email
-    try {
-      const matches = await callTool(client, 'network_search_companies', { query: facilitatorRaw, email })
-      if (Array.isArray(matches) && matches.length > 0) {
-        facilitatorArg.company_id = matches[0].company_id
-        try {
-          const company = await callTool(client, 'crm_get_company', { id: matches[0].company_id })
-          facilitatorInternal = !!company?.is_internal
-        } catch { /* degrade to email-domain guess below */ }
-      }
-    } catch { /* leave facilitator unresolved — the tool accepts a bare name/email */ }
-    if (!facilitatorInternal) {
-      const domain = emailDomain(facilitatorRaw)
-      facilitatorInternal = !!domain && GG_INTERNAL_DOMAINS.includes(domain)
-    }
-  }
+  const facilitator = facilitatorRaw
+    ? (facilitatorRaw.includes('@') ? { name: facilitatorRaw, email: facilitatorRaw } : { name: facilitatorRaw })
+    : undefined
 
-  const direction = deriveDirection(row, facilitatorInternal, anyPartyInternal, stats.warnings, lineNo)
-
-  if (unresolvedNames.length > 0) {
-    stats.held.push({ line: lineNo, source_ref: sourceRef, subject, unresolved: unresolvedNames })
+  if (!COMMIT) {
+    stats.wouldCreate.push({ line: lineNo, source_ref: sourceRef, subject, direction, parties: parties.map((p) => p.name) })
     return
   }
 
-  if (COMMIT) {
-    const result = await callTool(client, 'network_create_intro', {
-      direction,
-      occurred_on: row.date || undefined,
-      subject,
-      parties,
-      facilitator: facilitatorArg,
-      source: 'bulk_excel',
-      source_ref: sourceRef,
-      notes: row.notes || undefined,
-    })
-    if (result.deduped) stats.introsAlreadyLinked++
-    else stats.introsCreated++
-  } else {
-    stats.wouldCreate.push({ line: lineNo, source_ref: sourceRef, subject, direction, parties: parties.map((p) => p.name) })
-  }
+  const result = await callTool(client, 'network_create_intro', {
+    direction,
+    occurred_on: row.date || undefined,
+    subject,
+    parties,
+    facilitator,
+    source: 'bulk_excel',
+    source_ref: sourceRef,
+    notes: row.notes || undefined,
+  })
+  if (result.deduped) stats.introsAlreadyLinked++
+  else { stats.introsCreated++; stats.nameOnlyParties += result.name_only_parties ?? 0 }
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
@@ -341,16 +222,12 @@ async function main() {
   validateHeaders(headers)
 
   console.log(`${COMMIT ? 'COMMIT' : 'DRY RUN'} — ${filePath} (${rows.length} rows) via ${MCP_URL}`)
-  if (!GG_INTERNAL_DOMAINS.length) {
-    console.log('Note: GG_INTERNAL_DOMAINS is not set — direction can only be derived from a party\'s is_internal flag (not populated yet), so most rows will default to "other" unless the `direction` column is filled in.')
-  }
 
   const client = await connectMcp()
 
   const stats = {
-    partiesLinked: 0, companiesNewlyStaged: 0, companiesAlreadyStaged: 0,
-    introsCreated: 0, introsAlreadyLinked: 0,
-    wouldCreate: [], held: [], skipped: [], warnings: [], errors: [],
+    introsCreated: 0, introsAlreadyLinked: 0, nameOnlyParties: 0,
+    wouldCreate: [], skipped: [], warnings: [], errors: [],
   }
 
   try {
@@ -368,23 +245,16 @@ async function main() {
 
   // ── summary ──────────────────────────────────────────────────────────────
   console.log('\n── Summary ──')
-  console.log(`Parties resolved to an existing company: ${stats.partiesLinked}`)
-  console.log(`Companies newly staged to /triage:       ${stats.companiesNewlyStaged}`)
-  console.log(`Companies already staged (deduped):      ${stats.companiesAlreadyStaged}`)
   if (COMMIT) {
-    console.log(`Intros created:                          ${stats.introsCreated}`)
-    console.log(`Intros already existing (deduped):       ${stats.introsAlreadyLinked}`)
+    console.log(`Intros created:                    ${stats.introsCreated}`)
+    console.log(`Intros already existing (deduped): ${stats.introsAlreadyLinked}`)
+    console.log(`Name-only party links (nodes not a CRM company): ${stats.nameOnlyParties}`)
   } else {
-    console.log(`Intros that WOULD be created:            ${stats.wouldCreate.length}`)
+    console.log(`Intros that WOULD be created:      ${stats.wouldCreate.length}`)
   }
-  console.log(`Intros held (blocked on staged companies): ${stats.held.length}`)
-  console.log(`Rows skipped (bad data):                 ${stats.skipped.length}`)
-  console.log(`Errors:                                  ${stats.errors.length}`)
+  console.log(`Rows skipped (bad data):           ${stats.skipped.length}`)
+  console.log(`Errors:                            ${stats.errors.length}`)
 
-  if (stats.held.length) {
-    console.log('\nHeld — clear these in /triage, then re-run this file:')
-    for (const h of stats.held) console.log(`  line ${h.line} [${h.source_ref}] "${h.subject}" — waiting on: ${h.unresolved.join(', ')}`)
-  }
   if (!COMMIT && stats.wouldCreate.length) {
     console.log('\nWould create (dry run — re-run with --commit once this looks right):')
     for (const w of stats.wouldCreate) console.log(`  line ${w.line} [${w.source_ref}] "${w.subject}" — ${w.direction} — ${w.parties.join(' <> ')}`)

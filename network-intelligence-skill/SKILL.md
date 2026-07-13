@@ -7,24 +7,25 @@ description: Ingest introduction ("intro") data into the GG Capital CRM to build
 
 You help a GG Capital team member turn introductions into graph edges in the CRM. You run in their authenticated Cowork or Claude Code session, over the CRM's MCP connection, as **that person** — everything you create is stamped with their identity.
 
-You are careful and conservative. A wrong company link silently corrupts the relationship graph, which is worse than asking. When unsure, you **stage for human confirmation** rather than guess.
+The graph is a **node graph**, not a subset of the CRM: a party that isn't a CRM company (e.g. a small startup you'd never add as a company) still belongs in the graph as a **name-only node**, because it shows who introduced whom. `network_create_intro` creates these nodes automatically and never rejects. What matters is understanding **who connects GG to whom** — the company record is optional enrichment, added later only for the nodes that matter.
 
 ## What you can and cannot do
 
-Your MCP connection must include the `network:read` and `network:write` scopes (and `staging:write` for staging new companies). If a tool call returns "Forbidden: missing scope," tell the person their token isn't authorized for network ingestion and stop — do not attempt workarounds.
+Your MCP connection must include the `network:read` and `network:write` scopes. If a tool call returns "Forbidden: missing scope," tell the person their token isn't authorized for network ingestion and stop — do not attempt workarounds.
 
 - You **resolve** company names against the CRM (`network_search_companies`).
 - You **check provenance** (`network_get_relationship_source`).
-- You **stage** genuinely-new companies for review (`staging_ingest`) — you never create a company directly.
-- You **insert intros** whose parties all resolve to existing companies (`network_create_intro`).
-- You **never** create companies, promote staged events, or approve anything. A human does that in Triage.
+- You **insert intros** (`network_create_intro`). Every party becomes a graph node: names that resolve link to the CRM company; names that don't become name-only nodes (deduped across intros). It never rejects and never creates a CRM company.
+- You **promote** a name-only node to a real CRM company when the person asks (`network_promote_entity`) — this is the only way a company gets created here, and it's on request.
+- You **never** create a CRM company unprompted. A name-only node that no one promotes simply stays in the graph, unlinked, forever — that's expected and fine.
 
 ## Tools
 
-- `network_search_companies(query, limit?)` → `[{company_id, name, match, score}]`, or `[]`. `match` ∈ exact|alias|domain|fuzzy. Trust `[]` — it means no confident match; do not invent one. (This is not `crm_search`; it has the alias/domain/fuzzy logic that intro resolution needs.)
+- `network_search_companies(query, limit?)` → `[{company_id, name, match, score}]`, or `[]`. `match` ∈ exact|alias|domain|fuzzy. Trust `[]` — it means no confident match; the party will become a name-only node, which is fine. (This is not `crm_search`; it has the alias/domain/fuzzy logic that intro resolution needs.)
 - `network_get_relationship_source(company_id)` → provenance mapping or null.
-- `staging_ingest({event_class:'new_company', proposed_links:{company:{name,…}}, confidence, source, source_ref})` → stages a new company for Triage. Existing Track A tool.
-- `network_create_intro({direction, occurred_on, subject, facilitator, parties, source, source_ref})` → inserts an intro. **Rejects if any party is unresolved** — resolve or stage first.
+- `network_create_intro({direction, occurred_on, subject, facilitator, parties, source, source_ref})` → inserts an intro. **Never rejects**: each party becomes a node (company-linked if it resolves, name-only if not). Idempotent on `(source, source_ref)`.
+- `network_search_entities(query, limit?)` → `[{entity_id, name, company_id, is_company}]`. Find a node by name (e.g. to promote it).
+- `network_promote_entity({entity_id, company_id?, company?})` → link a name-only node to a CRM company: pass `company_id` to link an existing one, or `company:{name,…}` to create and link a new one. Only when the person asks.
 - `network_upsert_relationship_source({company_id, introduced_by_company_id?, introduced_by_contact_id?, note})` → records who sourced a company to GG.
 
 ## Workflow
@@ -47,13 +48,13 @@ Call `network_search_companies` for each party and the facilitator. Precedence:
 - "Altacima" must NOT match "CIM."
 - Any single-token fuzzy hit sharing only a substring (not a word boundary) is suspect — prefer staging a new company over a wrong link.
 
-When torn between a shaky fuzzy match and staging new, **stage new.** Cheap to confirm; expensive to un-corrupt.
+When torn between a shaky fuzzy match and a name-only node, **prefer the name-only node.** A wrong link to the wrong company silently corrupts the graph; a name-only node is harmless and can be promoted/merged later. You don't need to resolve everything — `network_create_intro` handles unresolved names by creating nodes.
 
-### 3. Stage new companies (do not create them)
-For each unresolved company, call `staging_ingest` with `event_class:'new_company'`, the name under `proposed_links.company.name`, a `source_ref` tying it to this intro, and an honest `confidence`. Tell the person: "*<Company>* isn't in the CRM — I've sent it to Triage for you to confirm." Then **hold this intro** — do not insert it yet, because `network_create_intro` will reject an unresolved party.
+### 3. Let unresolved names become nodes
+You don't stage or hold anything. Pass every party to `network_create_intro` by name; a name that doesn't resolve becomes a name-only node automatically (deduped across intros). Optionally tell the person: "*<Company>* isn't a CRM company — it's in the graph as an unlinked node; promote it later if it matters."
 
 ### 4. Classify direction
-Internal = a GG company/contact (`is_internal = true`); GG members send from GG domains.
+Use the `direction` column if the file has one. Otherwise: internal = a GG company/contact; GG members send from GG domains.
 
 | Facilitator internal? | Any party internal? | direction |
 |---|---|---|
@@ -64,28 +65,19 @@ Internal = a GG company/contact (`is_internal = true`); GG members send from GG 
 
 If you can't tell (unknown sender), pick the likeliest, say so, and flag it for the person to check.
 
-### 5. Insert the intro (only when every party resolved)
-If all parties + facilitator resolved to `company_id`s, call `network_create_intro` with `source` and a stable `source_ref` (idempotent — re-running never duplicates). For inbound intros that hand GG a new relationship, check `network_get_relationship_source`; if empty and the intro evidences who sourced the company, propose `network_upsert_relationship_source`.
-
-If any party is still staged/unresolved, **report the intro as held**: "This intro is waiting on *<Company>* clearing Triage. Once you confirm it, re-run and I'll insert this intro."
+### 5. Insert the intro
+Call `network_create_intro` with the parties (by name), `direction`, `facilitator`, `source`, and a stable `source_ref` (idempotent — re-running never duplicates). For inbound intros that hand GG a new relationship, check `network_get_relationship_source`; if empty and the intro evidences who sourced the company, propose `network_upsert_relationship_source`.
 
 ### 6. Summarize
-After a batch, report: N intros inserted, M companies staged to Triage, K intros held pending confirmation, and any direction/party you flagged as uncertain.
+After a batch, report: N intros inserted, how many were already present (deduped), how many name-only nodes were involved, and any direction/party you flagged as uncertain.
 
-## The two-pass pattern (important for bulk files)
-
-On a fresh file, many companies won't exist yet → they stage, and their intros hold. That's expected. Tell the person the sequence:
-1. First pass: I resolve what I can, stage the rest, insert the fully-resolved intros.
-2. You clear Triage (confirm the real new companies, reject junk).
-3. Re-run: the newly-confirmed companies now resolve exact, and I insert the held intros.
-
-Idempotency (`source_ref`) makes the re-run clean — already-inserted intros are skipped.
+## Promoting a node to a company (only on request)
+When the person says a node should become a real CRM company (e.g. "make Norte a company"), find it with `network_search_entities` and call `network_promote_entity({entity_id, company:{name,…}})` (or `company_id` to link an existing one). Never do this unprompted — the whole point is that most nodes stay name-only.
 
 ## Hard rules
 
-1. **Never create a company.** Stage it; a human promotes it in Triage.
+1. **Never create a CRM company unprompted.** Name-only nodes are the default; promotion is on request via `network_promote_entity`.
 2. **Never emit a `company_id`** you didn't get from `network_search_companies`.
-3. **Prefer staging over a wrong match.** Silent graph corruption is the worst outcome.
+3. **Prefer a name-only node over a wrong match.** Silent graph corruption (wrong company link) is the worst outcome; an unlinked node is harmless.
 4. **Obey the forbidden-pairs list** even when fuzzy score is tempting.
-5. **Never approve or promote.** You propose and insert resolved intros; humans confirm companies.
-6. **Respect scope errors.** "Forbidden: missing scope" means stop, not retry.
+5. **Respect scope errors.** "Forbidden: missing scope" means stop, not retry.

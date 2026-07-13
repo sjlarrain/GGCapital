@@ -21,6 +21,7 @@ import { hasScope, type AuthContext, type Scope } from '@/app/api/v1/_lib/auth'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { isNetworkUser } from '@/lib/network/allowlist'
 import { resolveCompany } from '@/lib/network/resolve'
+import { normName } from '@/lib/staging/mappings'
 import {
   CompanyCreateSchema,
   CompanyUpdateSchema,
@@ -69,6 +70,70 @@ function networkGuard(extra: Extra, scope: Scope): { ctx: AuthContext } | { erro
   if ('error' in g) return g
   if (!isNetworkUser(g.ctx.userId)) return { error: toolErr('Forbidden: not authorized for network intelligence') }
   return g
+}
+
+// ── network entity (node) resolution ──────────────────────────────────────────
+/**
+ * Find or create the graph NODE for a party/facilitator name. This is what lets
+ * the network include vertices that are not CRM companies:
+ *  1. If the name resolves to an existing company (exact→alias→domain→fuzzy),
+ *     reuse that company's node, or create a company-linked node if none exists.
+ *  2. Otherwise create/reuse a NAME-ONLY node (company_id null), deduped by
+ *     normName so the same name across many intros is one node.
+ * Never rejects — a name that doesn't resolve becomes a name-only node, not an
+ * error. Company promotion (linking a name-only node to a real company) is a
+ * separate, explicit step (network_promote_entity).
+ */
+type EntityRef = { entity_id: string; company_id: string | null; name: string }
+
+/** Ensure the (single) node backing a known company exists; reuse or create it. */
+async function ensureEntityForCompany(companyId: string, companyName: string, actor: string): Promise<EntityRef> {
+  const { data: existing } = await supabaseAdmin
+    .from('network_entities').select('id, name, company_id').eq('company_id', companyId).maybeSingle()
+  if (existing) return { entity_id: existing.id, company_id: existing.company_id, name: existing.name }
+  const norm = normName(companyName)
+  const { data: created, error } = await supabaseAdmin
+    .from('network_entities')
+    .insert({ name: companyName, name_norm: norm, company_id: companyId, created_by: actor })
+    .select('id, name, company_id').single()
+  // A concurrent insert (or a pre-existing name-only node with the same norm)
+  // can race the unique(name_norm)/unique(company_id) indexes — fall back to a read.
+  if (error || !created) {
+    const { data: fallback } = await supabaseAdmin
+      .from('network_entities').select('id, name, company_id')
+      .or(`company_id.eq.${companyId},name_norm.eq.${norm}`).limit(1).maybeSingle()
+    if (fallback) return { entity_id: fallback.id, company_id: fallback.company_id, name: fallback.name }
+    throw new Error(error?.message ?? 'Failed to create entity')
+  }
+  return { entity_id: created.id, company_id: created.company_id, name: created.name }
+}
+
+async function findOrCreateEntity(
+  name: string,
+  email: string | undefined,
+  actor: string,
+): Promise<EntityRef> {
+  const match = await resolveCompany(supabaseAdmin, { name, email })
+
+  // Company-backed node: keyed on company_id (one node per company).
+  if (match?.company_id) return ensureEntityForCompany(match.company_id, match.name, actor)
+
+  // Name-only node: keyed on normName(name).
+  const norm = normName(name)
+  const { data: existing } = await supabaseAdmin
+    .from('network_entities').select('id, name, company_id').eq('name_norm', norm).maybeSingle()
+  if (existing) return { entity_id: existing.id, company_id: existing.company_id, name: existing.name }
+  const { data: created, error } = await supabaseAdmin
+    .from('network_entities')
+    .insert({ name, name_norm: norm, company_id: null, created_by: actor })
+    .select('id, name, company_id').single()
+  if (error || !created) {
+    const { data: fallback } = await supabaseAdmin
+      .from('network_entities').select('id, name, company_id').eq('name_norm', norm).maybeSingle()
+    if (fallback) return { entity_id: fallback.id, company_id: fallback.company_id, name: fallback.name }
+    throw new Error(error?.message ?? 'Failed to create entity')
+  }
+  return { entity_id: created.id, company_id: created.company_id, name: created.name }
 }
 
 // ── registration ──────────────────────────────────────────────────────────────
@@ -368,11 +433,12 @@ export function registerNetworkTools(server: McpServer): void {
   server.registerTool(
     'network_create_intro',
     {
-      title: 'Create an intro (link existing companies only)',
+      title: 'Create an intro (auto-creates graph nodes)',
       description:
-        'Insert one introduction linking companies that ALREADY exist in the CRM. Each party name is re-resolved server-side; ' +
-        'if any party does not resolve to an existing company, the tool REJECTS with the unresolved names — stage those via ' +
-        'staging_ingest and retry. Cannot create companies. Idempotent on (source, source_ref): re-running never duplicates.',
+        'Insert one introduction as edges in the network graph. Each party becomes a NODE: names that resolve to an existing ' +
+        'CRM company link to it; names that do not become name-only nodes (deduped across intros) — the tool never rejects and ' +
+        'never creates a CRM company. Promote a name-only node to a company later with network_promote_entity. ' +
+        'Idempotent on (source, source_ref): re-running never duplicates.',
       inputSchema: {
         direction: z.enum(['outbound', 'outbound_internal', 'inbound', 'other']),
         parties: z.array(PartySchema).min(2).describe('The companies on each side; at least two'),
@@ -405,38 +471,34 @@ export function registerNetworkTools(server: McpServer): void {
         if (existing) return toolOk({ id: existing.id, deduped: true })
       }
 
-      // Resolve every party to an existing company; collect the unresolved by name.
-      const resolved: { company_id: string; side: number }[] = []
-      const unresolved: string[] = []
+      // Every party becomes a graph node (company-linked or name-only) — never rejected.
+      const resolved: { entity_id: string; company_id: string | null; side: number }[] = []
       for (const p of args.parties) {
-        let companyId: string | null = null
+        let ent: EntityRef
         if (p.company_id) {
-          const { data: c } = await supabaseAdmin.from('companies').select('id').eq('id', p.company_id).is('deleted_at', null).maybeSingle()
-          companyId = c?.id ?? null
+          const { data: c } = await supabaseAdmin.from('companies').select('id, name').eq('id', p.company_id).is('deleted_at', null).maybeSingle()
+          ent = c ? await ensureEntityForCompany(c.id, c.name, actor) : await findOrCreateEntity(p.name, p.email, actor)
         } else {
-          const m = await resolveCompany(supabaseAdmin, { name: p.name, email: p.email })
-          companyId = m?.company_id ?? null
+          ent = await findOrCreateEntity(p.name, p.email, actor)
         }
-        if (companyId) resolved.push({ company_id: companyId, side: p.side })
-        else unresolved.push(p.name)
+        resolved.push({ entity_id: ent.entity_id, company_id: ent.company_id, side: p.side })
       }
-      if (unresolved.length > 0) {
-        return toolErr(`Unresolved parties: ${unresolved.join(', ')}. Stage these via staging_ingest (event_class 'new_company'), confirm them in /triage, then retry.`)
-      }
+      const nameOnlyParties = resolved.filter((r) => r.company_id === null).length
 
-      // Dedupe parties by company (unique(intro_id, company_id)); keep first side seen.
-      const byCompany = new Map<string, number>()
-      for (const r of resolved) if (!byCompany.has(r.company_id)) byCompany.set(r.company_id, r.side)
+      // Dedupe parties by node (unique(intro_id, entity_id)); keep first side seen.
+      const byEntity = new Map<string, number>()
+      for (const r of resolved) if (!byEntity.has(r.entity_id)) byEntity.set(r.entity_id, r.side)
 
-      // Facilitator: lenient — resolve if we can, otherwise leave null.
+      // Facilitator: lenient — becomes a node if named, otherwise left null.
+      let facilitatorEntityId: string | null = null
       let facilitatorCompanyId: string | null = null
       const f = args.facilitator
       if (f?.company_id) {
-        const { data: c } = await supabaseAdmin.from('companies').select('id').eq('id', f.company_id).is('deleted_at', null).maybeSingle()
-        facilitatorCompanyId = c?.id ?? null
+        const { data: c } = await supabaseAdmin.from('companies').select('id, name').eq('id', f.company_id).is('deleted_at', null).maybeSingle()
+        if (c) { const e = await ensureEntityForCompany(c.id, c.name, actor); facilitatorEntityId = e.entity_id; facilitatorCompanyId = e.company_id }
       } else if (f?.name) {
-        const m = await resolveCompany(supabaseAdmin, { name: f.name, email: f.email })
-        facilitatorCompanyId = m?.company_id ?? null
+        const e = await findOrCreateEntity(f.name, f.email, actor)
+        facilitatorEntityId = e.entity_id; facilitatorCompanyId = e.company_id
       }
       let facilitatorContactId: string | null = null
       if (f?.contact_id) {
@@ -453,6 +515,7 @@ export function registerNetworkTools(server: McpServer): void {
           occurred_on: args.occurred_on ?? null,
           subject: args.subject ?? null,
           facilitator_company_id: facilitatorCompanyId,
+          facilitator_entity_id: facilitatorEntityId,
           facilitator_contact_id: facilitatorContactId,
           source,
           source_ref,
@@ -464,14 +527,108 @@ export function registerNetworkTools(server: McpServer): void {
         .single()
       if (introErr || !intro) return toolErr(introErr?.message ?? 'Failed to create intro')
 
-      const partyRows = [...byCompany.entries()].map(([company_id, side]) => ({ intro_id: intro.id, company_id, side }))
+      const partyRows = [...byEntity.entries()].map(([entity_id, side]) => ({ intro_id: intro.id, entity_id, side }))
       const { error: partiesErr } = await supabaseAdmin.from('intro_parties').insert(partyRows)
       if (partiesErr) {
         await supabaseAdmin.from('intros').delete().eq('id', intro.id) // compensate
         return toolErr(`Failed to link parties (${partiesErr.message}); intro rolled back.`)
       }
 
-      return toolOk({ id: intro.id, direction: args.direction, parties: partyRows.length, facilitator_company_id: facilitatorCompanyId, source, source_ref })
+      return toolOk({ id: intro.id, direction: args.direction, parties: partyRows.length, name_only_parties: nameOnlyParties, facilitator_entity_id: facilitatorEntityId, source, source_ref })
+    }
+  )
+
+  // ── node → company promotion ────────────────────────────────────────────────
+  server.registerTool(
+    'network_search_entities',
+    {
+      title: 'Find a network node by name',
+      description:
+        'Search graph nodes by name (case/accent-insensitive substring). Returns [{entity_id, name, company_id, is_company}]. ' +
+        'Use it to find the node you want to promote to a CRM company.',
+      inputSchema: {
+        query: z.string().min(1),
+        limit: z.number().int().min(1).max(50).optional(),
+      },
+    },
+    async ({ query, limit }, extra) => {
+      const g = networkGuard(extra, 'network:read'); if ('error' in g) return g.error
+      const { data, error } = await supabaseAdmin
+        .from('network_entities')
+        .select('id, name, company_id')
+        .ilike('name_norm', `%${normName(query)}%`)
+        .limit(limit ?? 20)
+      if (error) return toolErr(error.message)
+      return toolOk((data ?? []).map((e) => ({ entity_id: e.id, name: e.name, company_id: e.company_id, is_company: e.company_id !== null })))
+    }
+  )
+
+  server.registerTool(
+    'network_promote_entity',
+    {
+      title: 'Promote a network node to a CRM company',
+      description:
+        'Link an existing name-only graph node to a CRM company. Either pass company_id to link an existing company, or pass ' +
+        'company:{name,...} to create a new company and link it (name defaults to the node name). Idempotent if the node is ' +
+        'already linked to that same company; rejects if it is linked to a different one. A name-only node you never promote ' +
+        'simply stays in the graph unlinked — nothing forces promotion.',
+      inputSchema: {
+        entity_id: z.string().uuid(),
+        company_id: z.string().uuid().optional().describe('Link to this existing company'),
+        company: z
+          .object({
+            name: z.string().optional(),
+            website: z.string().optional(),
+            description: z.string().optional(),
+            country: z.string().optional(),
+          })
+          .optional()
+          .describe('Create a new company with these fields and link it (name defaults to the node name)'),
+      },
+    },
+    async ({ entity_id, company_id, company }, extra) => {
+      const g = networkGuard(extra, 'network:write'); if ('error' in g) return g.error
+      const actor = g.ctx.userId
+
+      const { data: entity } = await supabaseAdmin
+        .from('network_entities').select('id, name, company_id').eq('id', entity_id).maybeSingle()
+      if (!entity) return toolErr(`Node ${entity_id} not found`)
+      if (entity.company_id) {
+        if (company_id && entity.company_id === company_id) return toolOk({ entity_id, company_id, already_linked: true })
+        return toolErr(`Node "${entity.name}" is already linked to company ${entity.company_id}. Unlink it first to relink.`)
+      }
+
+      // Resolve the target company: link existing, or create new.
+      let targetCompanyId: string
+      if (company_id) {
+        const { data: c } = await supabaseAdmin.from('companies').select('id').eq('id', company_id).is('deleted_at', null).maybeSingle()
+        if (!c) return toolErr(`Company ${company_id} not found`)
+        // The partial-unique index enforces one node per company; check for a friendlier error.
+        const { data: taken } = await supabaseAdmin.from('network_entities').select('id').eq('company_id', company_id).maybeSingle()
+        if (taken) return toolErr(`Company ${company_id} already backs another node (${taken.id}).`)
+        targetCompanyId = company_id
+      } else {
+        const name = company?.name?.trim() || entity.name
+        const { data: created, error } = await supabaseAdmin
+          .from('companies')
+          .insert({
+            name,
+            website: company?.website ?? null,
+            description: company?.description ?? null,
+            country: company?.country ?? null,
+            source: 'network_promote',
+            created_by: actor,
+            updated_by: actor,
+          })
+          .select('id').single()
+        if (error || !created) return toolErr(error?.message ?? 'Failed to create company')
+        targetCompanyId = created.id
+      }
+
+      const { data: linked, error: linkErr } = await supabaseAdmin
+        .from('network_entities').update({ company_id: targetCompanyId }).eq('id', entity_id).select('id, name, company_id').single()
+      if (linkErr || !linked) return toolErr(linkErr?.message ?? 'Failed to link node to company')
+      return toolOk({ entity_id: linked.id, name: linked.name, company_id: linked.company_id, promoted: true })
     }
   )
 

@@ -10,18 +10,21 @@
 
 // ── shapes (mirror the two views) ─────────────────────────────────────────────
 
-/** One row of `v_network_leaderboard`. */
+/** One row of `v_network_leaderboard`. Keyed on the graph NODE (entity), which
+ *  may or may not be backed by a CRM company (`is_company` / `company_id`). */
 export interface LeaderboardRow {
-  company_id: string
+  entity_id: string
   name: string
+  company_id: string | null
+  is_company: boolean
   intros_facilitated: number
   intros_received: number
 }
 
 /** One row of `v_constellation_edges` (undirected; source < target). */
 export interface ConstellationEdge {
-  source_company_id: string
-  target_company_id: string
+  source_entity_id: string
+  target_entity_id: string
   weight: number
 }
 
@@ -57,9 +60,9 @@ export function computeDegrees(edges: ConstellationEdge[]): Map<string, number> 
     set.add(b)
   }
   for (const e of edges) {
-    if (e.source_company_id === e.target_company_id) continue
-    add(e.source_company_id, e.target_company_id)
-    add(e.target_company_id, e.source_company_id)
+    if (e.source_entity_id === e.target_entity_id) continue
+    add(e.source_entity_id, e.target_entity_id)
+    add(e.target_entity_id, e.source_entity_id)
   }
   const degrees = new Map<string, number>()
   for (const [id, set] of neighbors) degrees.set(id, set.size)
@@ -74,9 +77,9 @@ export function computeWeightedDegrees(edges: ConstellationEdge[]): Map<string, 
   const totals = new Map<string, number>()
   const add = (id: string, w: number) => totals.set(id, (totals.get(id) ?? 0) + w)
   for (const e of edges) {
-    if (e.source_company_id === e.target_company_id) continue
-    add(e.source_company_id, e.weight)
-    add(e.target_company_id, e.weight)
+    if (e.source_entity_id === e.target_entity_id) continue
+    add(e.source_entity_id, e.weight)
+    add(e.target_entity_id, e.weight)
   }
   return totals
 }
@@ -98,7 +101,7 @@ export function buildNodes(leaderboard: LeaderboardRow[], edges: ConstellationEd
     .map((row) => ({
       ...row,
       role: classifyRole(row),
-      degree: degrees.get(row.company_id) ?? 0,
+      degree: degrees.get(row.entity_id) ?? 0,
     }))
     .sort(
       (a, b) =>

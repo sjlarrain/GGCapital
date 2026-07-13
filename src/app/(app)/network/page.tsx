@@ -30,8 +30,8 @@ export default async function NetworkPage() {
   }
 
   const [edgesRes, leaderboardRes] = await Promise.all([
-    supabaseAdmin.from('v_constellation_edges').select('source_company_id, target_company_id, weight'),
-    supabaseAdmin.from('v_network_leaderboard').select('company_id, name, intros_facilitated, intros_received'),
+    supabaseAdmin.from('v_constellation_edges').select('source_entity_id, target_entity_id, weight'),
+    supabaseAdmin.from('v_network_leaderboard').select('entity_id, name, company_id, is_company, intros_facilitated, intros_received'),
   ])
 
   const edges = (edgesRes.data ?? []) as ConstellationEdge[]
