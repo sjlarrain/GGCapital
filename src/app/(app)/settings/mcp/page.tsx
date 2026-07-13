@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
+import { isNetworkUser } from '@/lib/network/allowlist'
 
 export default async function McpSettingsPage() {
   const supabase = await createClient()
@@ -14,7 +15,13 @@ export default async function McpSettingsPage() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') {
+  const isAdmin = profile?.role === 'admin'
+  const canGrantNetwork = isNetworkUser(user.id)
+
+  // Admins get here to roll out/test the CRM Skill; network-allowlisted users
+  // (who may not be admins) also need this page for the connector instructions
+  // and the Network Intelligence Skill download below.
+  if (!isAdmin && !canGrantNetwork) {
     redirect('/not-found')
   }
 
@@ -54,6 +61,20 @@ export default async function McpSettingsPage() {
           Download the CRM Skill
         </a>
       </div>
+
+      {canGrantNetwork && (
+        <div className="box">
+          <h2 className="title is-6 mb-3">3. Install the Network Intelligence Skill</h2>
+          <p className="mb-3">
+            Internal — for loading introductions into the relationship constellation. Requires the{' '}
+            <code>network:read</code>/<code>network:write</code> scopes, which you can grant when
+            connecting since your account is authorized for Network Intelligence.
+          </p>
+          <a className="button is-primary" href="/network-intelligence-skill.zip" download>
+            Download the Network Intelligence Skill
+          </a>
+        </div>
+      )}
 
       <p className="has-text-grey is-size-7">
         First time doing this? The <Link href="/docs/mcp" target="_blank" rel="noopener noreferrer">step-by-step guide</Link> walks

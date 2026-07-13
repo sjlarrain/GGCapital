@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { isNetworkUser } from '@/lib/network/allowlist'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -12,6 +13,10 @@ export default async function SettingsPage() {
     .single()
 
   const isAdmin = profile?.role === 'admin'
+  // /settings/mcp and /docs/mcp are reachable by admins (rollout/testing) OR
+  // network-allowlisted users (who may not be admins, but need the connector
+  // instructions + Network Intelligence Skill download).
+  const showMcp = isAdmin || isNetworkUser(user!.id)
 
   return (
     <div className="container" style={{ maxWidth: 640, padding: '2rem 1rem' }}>
@@ -42,14 +47,14 @@ export default async function SettingsPage() {
           </Link>
         </div>
 
-        {isAdmin && (
+        {showMcp && (
           <div className="column is-full">
             <Link href="/settings/mcp" className="box" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <span style={{ fontSize: '1.5rem' }}>🤖</span>
                 <div>
                   <p className="has-text-weight-semibold">AI Agent (MCP)</p>
-                  <p className="has-text-grey is-size-7">Connect Claude / Cowork and download the CRM Skill.</p>
+                  <p className="has-text-grey is-size-7">Connect Claude / Cowork and download Skills.</p>
                 </div>
               </div>
             </Link>
@@ -68,7 +73,7 @@ export default async function SettingsPage() {
           </a>
         </div>
 
-        {isAdmin && (
+        {showMcp && (
           <div className="column is-full">
             <a href="/docs/mcp" target="_blank" rel="noopener noreferrer" className="box" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>

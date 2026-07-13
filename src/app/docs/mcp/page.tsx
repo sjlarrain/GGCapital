@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { isNetworkUser } from '@/lib/network/allowlist'
 
 export const metadata = {
   title: 'Connecting an AI Agent — GG Capital CRM',
@@ -34,7 +35,7 @@ export default async function McpGuidePage() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') {
+  if (profile?.role !== 'admin' && !isNetworkUser(user.id)) {
     redirect('/not-found')
   }
 
