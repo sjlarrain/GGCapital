@@ -19,8 +19,6 @@ interface CompanyFormProps {
   onSuccess?: (created?: { id: string; name: string; industry_ids: string[]; region_ids: string[]; stage_ids: string[] }) => void
 }
 
-const FUND_STAGE_NAMES = ['Pre-Seed & Seed', 'Early Stage', 'Late Stage']
-
 export default function CompanyForm({ company, tags, userId, mode = 'company', onSuccess }: CompanyFormProps) {
   const isFund = mode === 'fund'
   const router = useRouter()
@@ -32,6 +30,7 @@ export default function CompanyForm({ company, tags, userId, mode = 'company', o
   const [valuation, setValuation] = useState(company?.valuation_musd?.toString() ?? '')
   const [legal, setLegal] = useState(company?.legal ?? '')
   const [dealDate, setDealDate] = useState(company?.deal_date ?? '')
+  const [foundedYear, setFoundedYear] = useState(company?.founded_year?.toString() ?? '')
   const [source, setSource] = useState<'' | 'Direct' | 'Fund'>(company?.source ?? '')
   const [industryIds, setIndustryIds] = useState<string[]>(company?.industry_ids ?? [])
   const [regionIds, setRegionIds] = useState<string[]>(company?.region_ids ?? [])
@@ -54,9 +53,6 @@ export default function CompanyForm({ company, tags, userId, mode = 'company', o
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const visibleStages = isFund
-    ? tagState.stages.filter((s) => FUND_STAGE_NAMES.includes(s.name) || stageIds.includes(s.id))
-    : tagState.stages
   const FUND_STATUS_NAMES = ['Active', 'Approved', 'Rejected', 'Miss', 'Stand-by']
   const countryOptions = (country && !(COUNTRIES as readonly string[]).includes(country)
     ? [country, ...COUNTRIES]
@@ -89,6 +85,7 @@ export default function CompanyForm({ company, tags, userId, mode = 'company', o
         description: description.trim() || null,
         website: website.trim() || null,
         country: country.trim() || null,
+        founded_year: foundedYear ? parseInt(foundedYear, 10) : null,
         round_size_musd: roundSize ? parseFloat(roundSize) : null,
         valuation_musd: !isFund && valuation ? parseFloat(valuation) : null,
         legal: !isFund ? (legal.trim() || null) : null,
@@ -218,6 +215,22 @@ export default function CompanyForm({ company, tags, userId, mode = 'company', o
             </div>
           </div>
         )}
+        <div className="column">
+          <div className="field">
+            <label className="label">Founded</label>
+            <div className="control">
+              <input
+                className="input"
+                type="number"
+                placeholder="e.g. 2019"
+                min={1800}
+                max={2100}
+                value={foundedYear}
+                onChange={(e) => setFoundedYear(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {isFund ? (
@@ -284,7 +297,7 @@ export default function CompanyForm({ company, tags, userId, mode = 'company', o
         </div>
       )}
       <div className="relative">
-        <TagPicker label={isFund ? 'Investment Stage' : 'Stage'} catalog={visibleStages} selected={stageIds} onChange={setStageIds} onCreateTag={makeTagCreator('stages')} />
+        <TagPicker label={isFund ? 'Investment Stage' : 'Stage'} catalog={tagState.stages} selected={stageIds} onChange={setStageIds} onCreateTag={makeTagCreator('stages')} />
       </div>
       <div className="relative">
         <TagPicker label="Status" catalog={visibleStatuses} selected={statusId} onChange={setStatusId} onCreateTag={makeTagCreator('statuses')} multi={false} />

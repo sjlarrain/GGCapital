@@ -53,7 +53,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
 
   const { data: contacts } = await supabase
     .from('contacts')
-    .select('id, name, role, email, investment_focus, stage_ids')
+    .select('id, name, role, email, investment_focus_ids, stage_ids')
     .eq('company_id', id)
     .is('deleted_at', null)
     .order('name')
@@ -73,8 +73,10 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
 
   // "Investment thesis" = the focus its contacts invest in, unioned across them.
   const investmentThesis = Array.from(
-    new Set((contacts ?? []).flatMap((c) => (c.investment_focus ?? []) as string[]))
-  ).filter(Boolean)
+    new Set((contacts ?? []).flatMap((c) => (c.investment_focus_ids ?? []) as string[]))
+  )
+    .map((tid) => tags.investmentFocus.find((t) => t.id === tid)?.name)
+    .filter(Boolean) as string[]
   const companyStages = stageNames((company.stage_ids ?? []) as string[])
   const fmtMusd = (n: number | null) => (n == null ? null : `US$ ${n}M`)
 
@@ -117,6 +119,12 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
                 <div className="column is-half">
                   <span className="has-text-grey">Website: </span>
                   <a href={company.website.startsWith('http') ? company.website : `https://${company.website}`} target="_blank" rel="noreferrer">{company.website}</a>
+                </div>
+              )}
+              {company.founded_year && (
+                <div className="column is-half">
+                  <span className="has-text-grey">Founded: </span>
+                  <span>{company.founded_year}</span>
                 </div>
               )}
               <div className="column is-half">
@@ -225,6 +233,12 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
                 <div className="column is-half">
                   <span className="has-text-grey">Deal date: </span>
                   <span>{formatDate(company.deal_date)}</span>
+                </div>
+              )}
+              {company.founded_year && (
+                <div className="column is-half">
+                  <span className="has-text-grey">Founded: </span>
+                  <span>{company.founded_year}</span>
                 </div>
               )}
               {parent && (
@@ -362,7 +376,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="mt-5">
-        <p className="is-size-6 has-text-weight-semibold mb-3">Activity timeline</p>
+        <p className="is-size-6 has-text-weight-semibold mb-3">Notes</p>
         <ActivityTimeline entityType="company" entityId={id} userId={user!.id} entries={entries} />
       </div>
     </div>

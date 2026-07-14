@@ -23,13 +23,46 @@ export async function createInteractionLog(payload: InteractionLogInsert) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('interaction_logs')
-    .insert(payload)
+    .insert({ ...payload, updated_by: payload.created_by })
     .select()
     .single()
   if (error) throw error
   const basePath = payload.entity_type === 'contact' ? 'contacts' : 'companies'
   revalidatePath(`/${basePath}/${payload.entity_id}`)
   return data
+}
+
+export async function updateInteractionLog(
+  id: string,
+  entityType: 'contact' | 'company',
+  entityId: string,
+  updates: { note: string; follow_up: boolean },
+  userId: string
+) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('interaction_logs')
+    .update({ ...updates, updated_by: userId })
+    .eq('id', id)
+  if (error) throw error
+  const basePath = entityType === 'contact' ? 'contacts' : 'companies'
+  revalidatePath(`/${basePath}/${entityId}`)
+}
+
+export async function deleteInteractionLog(
+  id: string,
+  entityType: 'contact' | 'company',
+  entityId: string
+) {
+  const supabase = await createClient()
+  const { error, count } = await supabase
+    .from('interaction_logs')
+    .delete({ count: 'exact' })
+    .eq('id', id)
+  if (error) throw error
+  if (count === 0) throw new Error('Delete was blocked — only the note\'s author can delete it.')
+  const basePath = entityType === 'contact' ? 'contacts' : 'companies'
+  revalidatePath(`/${basePath}/${entityId}`)
 }
 
 export async function getFollowUpContacts() {
@@ -93,6 +126,7 @@ export async function flagMeetingFollowUp(meetingId: string, companyId: string, 
     file_urls: [],
     links: [],
     created_by: userId,
+    updated_by: userId,
   })
   if (error) throw error
   revalidatePath(`/meetings/${meetingId}`)

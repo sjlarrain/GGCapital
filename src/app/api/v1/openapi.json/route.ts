@@ -61,6 +61,7 @@ const spec = {
           legal:                { type: 'string', nullable: true },
           deal_date:            { type: 'string', format: 'date', nullable: true },
           country:              { type: 'string', nullable: true },
+          founded_year:         { type: 'integer', nullable: true },
           investment_stage_ids: { type: 'array', items: { type: 'string', format: 'uuid' } },
           files:                { type: 'array', items: { type: 'string' } },
           data_status:          { '$ref': '#/components/schemas/DataStatus' },
@@ -93,6 +94,7 @@ const spec = {
           legal:                { type: 'string', nullable: true },
           deal_date:            { type: 'string', format: 'date', nullable: true },
           country:              { type: 'string', nullable: true },
+          founded_year:         { type: 'integer', nullable: true },
           investment_stage_ids: { type: 'array', items: { type: 'string', format: 'uuid' } },
           files:                { type: 'array', items: { type: 'string' } },
         },
@@ -113,7 +115,7 @@ const spec = {
           expertise:        { type: 'string', nullable: true },
           industry_ids:     { type: 'array', items: { type: 'string', format: 'uuid' } },
           region_ids:       { type: 'array', items: { type: 'string', format: 'uuid' } },
-          investment_focus: { type: 'array', items: { type: 'string' } },
+          investment_focus_ids: { type: 'array', items: { type: 'string', format: 'uuid' } },
           linkedin:         { type: 'string', format: 'uri', nullable: true },
           location:         { type: 'string', nullable: true },
           stage_ids:        { type: 'array', items: { type: 'string', format: 'uuid' } },
@@ -141,7 +143,7 @@ const spec = {
           expertise:        { type: 'string', nullable: true },
           industry_ids:     { type: 'array', items: { type: 'string', format: 'uuid' } },
           region_ids:       { type: 'array', items: { type: 'string', format: 'uuid' } },
-          investment_focus: { type: 'array', items: { type: 'string' } },
+          investment_focus_ids: { type: 'array', items: { type: 'string', format: 'uuid' } },
           linkedin:         { type: 'string', format: 'uri', nullable: true },
           location:         { type: 'string', nullable: true },
           stage_ids:        { type: 'array', items: { type: 'string', format: 'uuid' } },
@@ -596,8 +598,8 @@ const spec = {
         parameters: [
           {
             name: 'catalog', in: 'query',
-            schema: { type: 'string', enum: ['industries', 'regions', 'stages', 'types', 'statuses', 'meetingTypes'] },
-            description: 'Return only this catalog. Omit to return all six.',
+            schema: { type: 'string', enum: ['industries', 'regions', 'stages', 'types', 'statuses', 'meetingTypes', 'investmentFocus'] },
+            description: 'Return only this catalog. Omit to return all seven.',
           },
         ],
         responses: {
@@ -618,7 +620,7 @@ const spec = {
                 type: 'object',
                 required: ['catalog', 'name'],
                 properties: {
-                  catalog: { type: 'string', enum: ['industries', 'regions', 'stages', 'types', 'statuses', 'meetingTypes'] },
+                  catalog: { type: 'string', enum: ['industries', 'regions', 'stages', 'types', 'statuses', 'meetingTypes', 'investmentFocus'] },
                   name:    { type: 'string' },
                 },
                 additionalProperties: false,

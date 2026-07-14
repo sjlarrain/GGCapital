@@ -25,8 +25,6 @@ const effStageIds = (c: CompanyRow): string[] => c.stage_ids
 
 type SortKey = 'name' | 'stage' | 'country' | 'status'
 
-const FUND_STAGE_NAMES = ['Pre-Seed & Seed', 'Early Stage', 'Late Stage']
-
 interface Props {
   companies: CompanyRow[]
   tags: TagCatalogs
@@ -154,10 +152,7 @@ export default function CompaniesTable({ companies, tags, userId, defaultView }:
           </div>
           <div className="level-item">
             <SearchableSelect
-              options={(isFundsView
-                ? tags.stages.filter((s) => FUND_STAGE_NAMES.includes(s.name))
-                : tags.stages
-              ).map((s) => ({ id: s.id, label: s.name }))}
+              options={tags.stages.map((s) => ({ id: s.id, label: s.name }))}
               value={stageFilter}
               onChange={setStageFilter}
               placeholder={isFundsView ? 'All investment stages' : 'All stages'}

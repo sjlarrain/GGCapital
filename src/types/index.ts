@@ -24,6 +24,7 @@ export interface TagCatalogs {
   types: TagItem[]
   statuses: TagItem[]
   meetingTypes: TagItem[]
+  investmentFocus: TagItem[]
 }
 
 // ── Companies ─────────────────────────────────────────────
@@ -48,6 +49,7 @@ export interface Company {
   deal_date?: string | null
   files?: string[]
   country?: string | null
+  founded_year?: number | null
   // Stages a fund invests in (rolled up from its contacts). Distinct from
   // `stage_ids`, which is a portfolio company's current round (migration 006).
   investment_stage_ids?: string[]
@@ -76,7 +78,7 @@ export interface Contact {
   company_id: string | null
   industry_ids: string[]
   region_ids: string[]
-  investment_focus: string[]
+  investment_focus_ids: string[]
   // Migration 006. Optional: DB-nullable / defaulted, not yet managed by the forms.
   linkedin?: string | null
   location?: string | null
@@ -132,9 +134,11 @@ export interface InteractionLog {
   links: string[]
   created_by: string
   created_at: string
+  updated_by: string
+  updated_at: string
 }
 
-export type InteractionLogInsert = Omit<InteractionLog, 'id' | 'created_at'>
+export type InteractionLogInsert = Omit<InteractionLog, 'id' | 'created_at' | 'updated_at' | 'updated_by'>
 
 // ── Feedback ──────────────────────────────────────────────
 export interface Feedback {

@@ -5,7 +5,7 @@ import { findNearMatches } from '@/lib/utils'
 import type { TagItem } from '@/types'
 import Alert from './ui/Alert'
 
-type CatalogKey = 'industries' | 'regions' | 'stages' | 'types' | 'statuses' | 'meetingTypes'
+type CatalogKey = 'industries' | 'regions' | 'stages' | 'types' | 'statuses' | 'meetingTypes' | 'investmentFocus'
 
 interface Props {
   catalog: CatalogKey

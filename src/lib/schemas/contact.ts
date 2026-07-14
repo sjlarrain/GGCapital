@@ -10,7 +10,7 @@ const base = z.object({
   expertise:        z.string().nullable().optional(),
   industry_ids:     z.array(z.string().uuid()).optional(),
   region_ids:       z.array(z.string().uuid()).optional(),
-  investment_focus: z.array(z.string()).optional(),
+  investment_focus_ids: z.array(z.string().uuid()).optional(),
   linkedin:         z.string().url().nullable().optional(),
   location:         z.string().nullable().optional(),
   stage_ids:        z.array(z.string().uuid()).optional(),

@@ -10,19 +10,21 @@ const TABLES = {
   types: 'tag_types',
   statuses: 'tag_statuses',
   meetingTypes: 'tag_meeting_types',
+  investmentFocus: 'tag_investment_focus',
 } as const
 
 type CatalogKey = keyof typeof TABLES
 
 export async function getTagCatalogs() {
   const supabase = await createClient()
-  const [industries, regions, stages, types, statuses, meetingTypes] = await Promise.all([
+  const [industries, regions, stages, types, statuses, meetingTypes, investmentFocus] = await Promise.all([
     supabase.from('tag_industries').select('*').order('name'),
     supabase.from('tag_regions').select('*').order('name'),
     supabase.from('tag_stages').select('*').order('name'),
     supabase.from('tag_types').select('*').order('name'),
     supabase.from('tag_statuses').select('*').order('name'),
     supabase.from('tag_meeting_types').select('*').order('name'),
+    supabase.from('tag_investment_focus').select('*').order('name'),
   ])
   return {
     industries: industries.data ?? [],
@@ -31,6 +33,7 @@ export async function getTagCatalogs() {
     types: types.data ?? [],
     statuses: statuses.data ?? [],
     meetingTypes: meetingTypes.data ?? [],
+    investmentFocus: investmentFocus.data ?? [],
   }
 }
 

@@ -44,7 +44,7 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
   const [linkedin, setLinkedin] = useState(contact?.linkedin ?? '')
   const [location, setLocation] = useState(contact?.location ?? '')
   const [companyId, setCompanyId] = useState(contact?.company_id ?? defaultCompanyId ?? '')
-  const [investmentFocus, setInvestmentFocus] = useState<string[]>(contact?.investment_focus ?? [])
+  const [investmentFocusIds, setInvestmentFocusIds] = useState<string[]>(contact?.investment_focus_ids ?? [])
   // For a new contact pre-filled with a company, seed tags from that company.
   const seedCompany = !contact && defaultCompanyId ? companies.find((c) => c.id === defaultCompanyId) : undefined
   const [industryIds, setIndustryIds] = useState<string[]>(contact?.industry_ids ?? seedCompany?.industry_ids ?? [])
@@ -124,7 +124,7 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
         industry_ids: industryIds,
         region_ids: regionIds,
         stage_ids: stageIds,
-        investment_focus: investmentFocus,
+        investment_focus_ids: investmentFocusIds,
         updated_by: userId,
       }
       if (contact) {
@@ -254,25 +254,8 @@ export default function ContactForm({ contact, tags, companies, userId, defaultC
           </div>
         </div>
 
-        <div className="field">
-          <label className="label">Investment Focus</label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-            {['Accelerator', 'Builder', 'Funds', 'PE', 'Startups'].map((option) => (
-              <label key={option} className="checkbox">
-                <input
-                  type="checkbox"
-                  className="mr-1"
-                  checked={investmentFocus.includes(option)}
-                  onChange={(e) =>
-                    setInvestmentFocus((prev) =>
-                      e.target.checked ? [...prev, option] : prev.filter((v) => v !== option)
-                    )
-                  }
-                />
-                {option}
-              </label>
-            ))}
-          </div>
+        <div className="relative">
+          <TagPicker label="Investment Focus" catalog={tagState.investmentFocus} selected={investmentFocusIds} onChange={setInvestmentFocusIds} onCreateTag={makeTagCreator('investmentFocus')} />
         </div>
 
         <div className="relative">

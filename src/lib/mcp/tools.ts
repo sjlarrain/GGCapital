@@ -195,22 +195,24 @@ export function registerCrmTools(server: McpServer): void {
     'tags_list',
     {
       title: 'List tag catalogs',
-      description: 'List the controlled tag catalogs (industries, regions, stages, types, statuses, meeting types). Only use ids from these catalogs — never invent tags.',
+      description: 'List the controlled tag catalogs (industries, regions, stages, types, statuses, meeting types, investment focus). Only use ids from these catalogs — never invent tags.',
       inputSchema: {},
     },
     async (_args, extra) => {
       const g = guard(extra, 'crm:read'); if ('error' in g) return g.error
-      const [industries, regions, stages, types, statuses, meetingTypes] = await Promise.all([
+      const [industries, regions, stages, types, statuses, meetingTypes, investmentFocus] = await Promise.all([
         supabaseAdmin.from('tag_industries').select('*').order('name'),
         supabaseAdmin.from('tag_regions').select('*').order('name'),
         supabaseAdmin.from('tag_stages').select('*').order('name'),
         supabaseAdmin.from('tag_types').select('*').order('name'),
         supabaseAdmin.from('tag_statuses').select('*').order('name'),
         supabaseAdmin.from('tag_meeting_types').select('*').order('name'),
+        supabaseAdmin.from('tag_investment_focus').select('*').order('name'),
       ])
       return toolOk({
         industries: industries.data ?? [], regions: regions.data ?? [], stages: stages.data ?? [],
         types: types.data ?? [], statuses: statuses.data ?? [], meetingTypes: meetingTypes.data ?? [],
+        investmentFocus: investmentFocus.data ?? [],
       })
     }
   )

@@ -30,6 +30,9 @@ export default async function TagsPage() {
         <div className="column is-half">
           <TagCatalogManager catalog="meetingTypes" label="Meeting Types" items={tags.meetingTypes} />
         </div>
+        <div className="column is-half">
+          <TagCatalogManager catalog="investmentFocus" label="Investment Focus" items={tags.investmentFocus} />
+        </div>
       </div>
     </div>
   )

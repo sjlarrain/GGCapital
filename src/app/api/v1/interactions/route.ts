@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from('interaction_logs')
-    .insert({ ...body, created_by: ctx.userId })
+    .insert({ ...body, created_by: ctx.userId, updated_by: ctx.userId })
     .select()
     .single()
 

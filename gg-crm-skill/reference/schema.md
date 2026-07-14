@@ -24,6 +24,7 @@ don't set them, but you read them to know what still needs enriching.
 | `valuation_musd`       |     | number (MUSD). |
 | `deal_date`            |     | YYYY-MM-DD. |
 | `legal`                |     | Free text. |
+| `founded_year`         |     | Integer, e.g. `2019`. |
 
 ## Contact (`crm_create_contact` / `crm_update_contact`)
 
@@ -36,7 +37,7 @@ don't set them, but you read them to know what still needs enriching.
 | `employer`         |     | If different from the linked company. |
 | `phone`            |     | |
 | `expertise`        |     | Free text. |
-| `investment_focus` |     | string[]. |
+| `investment_focus_ids` |     | uuid[] from `tags_list.investmentFocus`. |
 | `industry_ids`     |     | uuid[] from `tags_list.industries`. |
 | `region_ids`       |     | uuid[] from `tags_list.regions`. |
 | `stage_ids`        |     | uuid[] from `tags_list.stages`. |
@@ -55,7 +56,7 @@ don't set them, but you read them to know what still needs enriching.
 
 ## Tag catalogs (`tags_list`)
 
-Returns: `industries`, `regions`, `stages`, `types`, `statuses`, `meetingTypes` — each an
+Returns: `industries`, `regions`, `stages`, `types`, `statuses`, `meetingTypes`, `investmentFocus` — each an
 array of `{ id, name }`. Resolve free-text tag values to a catalog **name** first (see
 `reference/verification-rules.md` for the alias rules), then use its `id`. If a value has no
 catalog match, stage the event with the free text under `extracted` and let review decide.

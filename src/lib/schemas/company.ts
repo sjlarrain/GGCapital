@@ -16,6 +16,7 @@ const base = z.object({
   legal:                z.string().nullable().optional(),
   deal_date:            z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   country:              z.string().nullable().optional(),
+  founded_year:         z.number().int().min(1800).max(2100).nullable().optional(),
   investment_stage_ids: z.array(z.string().uuid()).optional(),
   files:                z.array(z.string()).optional(),
 })

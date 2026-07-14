@@ -204,22 +204,6 @@ th.is-sortable:hover {
   min-width: 240px;
 }
 
-/* Timeline */
-.gg-timeline-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  margin-top: 4px;
-  flex-shrink: 0;
-}
-
-.gg-timeline-line {
-  width: 1px;
-  flex: 1;
-  background: #e5e7eb;
-  margin: 4px auto;
-}
-
 /* Feedback modal in sidebar */
 .gg-feedback-btn {
   background: none;

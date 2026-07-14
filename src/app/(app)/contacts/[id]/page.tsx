@@ -29,6 +29,7 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
   const stageNames = names(contact.stage_ids, tags.stages)
   const industryNames = names(contact.industry_ids, tags.industries)
   const regionNames = names(contact.region_ids, tags.regions)
+  const investmentFocusNames = names(contact.investment_focus_ids, tags.investmentFocus)
 
   type MeetingRow = { id: string; title: string; date: string }
   const entries = [
@@ -128,15 +129,13 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
             </div>
           )}
         </div>
-        {((contact.investment_focus ?? []).length > 0 || stageNames.length > 0 || industryNames.length > 0 || regionNames.length > 0) && (
+        {(investmentFocusNames.length > 0 || stageNames.length > 0 || industryNames.length > 0 || regionNames.length > 0) && (
           <div className="mt-4" style={{ borderTop: '1px solid #f5f5f5', paddingTop: '1rem' }}>
-            {(contact.investment_focus ?? []).length > 0 && (
+            {investmentFocusNames.length > 0 && (
               <div className="mb-3">
                 <p className="is-size-7 has-text-grey mb-2">Investment Focus</p>
                 <div className="tags">
-                  {(contact.investment_focus as string[]).map((f: string) => (
-                    <Badge key={f} variant="blue">{f}</Badge>
-                  ))}
+                  {investmentFocusNames.map((n) => <Badge key={n} variant="blue">{n}</Badge>)}
                 </div>
               </div>
             )}
@@ -208,7 +207,7 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div>
-        <p className="is-size-6 has-text-weight-semibold mb-3">Activity timeline</p>
+        <p className="is-size-6 has-text-weight-semibold mb-3">Notes</p>
         <ActivityTimeline entityType="contact" entityId={id} userId={user!.id} entries={entries} />
       </div>
     </div>

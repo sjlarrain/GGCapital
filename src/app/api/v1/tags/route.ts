@@ -11,12 +11,13 @@ const CATALOG_TABLES = {
   types:       'tag_types',
   statuses:    'tag_statuses',
   meetingTypes: 'tag_meeting_types',
+  investmentFocus: 'tag_investment_focus',
 } as const
 
 type CatalogKey = keyof typeof CATALOG_TABLES
 
 const TagCreateSchema = z.object({
-  catalog: z.enum(['industries', 'regions', 'stages', 'types', 'statuses', 'meetingTypes']),
+  catalog: z.enum(['industries', 'regions', 'stages', 'types', 'statuses', 'meetingTypes', 'investmentFocus']),
   name:    z.string().min(1).max(100),
 }).strict()
 
@@ -37,13 +38,14 @@ export async function GET(req: NextRequest) {
     return ok({ [catalogParam]: data })
   }
 
-  const [industries, regions, stages, types, statuses, meetingTypes] = await Promise.all([
+  const [industries, regions, stages, types, statuses, meetingTypes, investmentFocus] = await Promise.all([
     supabaseAdmin.from('tag_industries').select('*').order('name'),
     supabaseAdmin.from('tag_regions').select('*').order('name'),
     supabaseAdmin.from('tag_stages').select('*').order('name'),
     supabaseAdmin.from('tag_types').select('*').order('name'),
     supabaseAdmin.from('tag_statuses').select('*').order('name'),
     supabaseAdmin.from('tag_meeting_types').select('*').order('name'),
+    supabaseAdmin.from('tag_investment_focus').select('*').order('name'),
   ])
 
   return ok({
@@ -53,6 +55,7 @@ export async function GET(req: NextRequest) {
     types:        types.data ?? [],
     statuses:     statuses.data ?? [],
     meetingTypes: meetingTypes.data ?? [],
+    investmentFocus: investmentFocus.data ?? [],
   })
 }
 
