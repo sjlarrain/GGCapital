@@ -15,15 +15,7 @@ export default async function McpSettingsPage() {
     .eq('id', user.id)
     .single()
 
-  const isAdmin = profile?.role === 'admin'
   const canGrantNetwork = canUseNetwork(user.id, profile?.role)
-
-  // Admins get here to roll out/test the CRM Skill; network-allowlisted users
-  // (who may not be admins) also need this page for the connector instructions
-  // and the Network Intelligence Skill download below.
-  if (!isAdmin && !canGrantNetwork) {
-    redirect('/not-found')
-  }
 
   const h = await headers()
   const proto = h.get('x-forwarded-proto') ?? 'https'
@@ -42,6 +34,39 @@ export default async function McpSettingsPage() {
       </p>
 
       <div className="box">
+        <h2 className="title is-6 mb-3">Which skill do I need?</h2>
+        <table className="table is-fullwidth is-narrow mb-0">
+          <tbody>
+            <tr>
+              <td style={{ whiteSpace: 'nowrap' }}><strong>CRM Skill</strong></td>
+              <td>
+                General-purpose. Add/enrich/de-duplicate companies, contacts, and meetings,
+                using the tag catalogs correctly and staging anything uncertain for Triage.
+              </td>
+            </tr>
+            <tr>
+              <td style={{ whiteSpace: 'nowrap' }}><strong>Company Enrichment Skill</strong></td>
+              <td>
+                Fills in a specific company/fund&apos;s Description and Founded year by
+                browsing its LinkedIn page live (you may need to log in yourself when
+                prompted) and proposing the values for your approval before writing them.
+                One company at a time.
+              </td>
+            </tr>
+            {canGrantNetwork && (
+              <tr>
+                <td style={{ whiteSpace: 'nowrap' }}><strong>Network Intelligence Skill</strong></td>
+                <td>
+                  Internal — loads introductions into the relationship constellation graph.
+                  Requires the <code>network:read</code>/<code>network:write</code> scopes.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="box">
         <h2 className="title is-6 mb-3">1. Add the MCP connector</h2>
         <p className="mb-2">
           In your MCP client, add a connector pointing at:
@@ -52,7 +77,7 @@ export default async function McpSettingsPage() {
           you to approve access. No API key to copy — it connects as <strong>you</strong>.
         </p>
 
-        <h2 className="title is-6 mb-3">2. Install the Skill</h2>
+        <h2 className="title is-6 mb-3">2. Install the Skill(s) you need</h2>
         <p className="mb-3">
           The Skill teaches the agent the required fields, the tag catalogs, and when to send
           data to Triage instead of the live CRM.
@@ -62,9 +87,21 @@ export default async function McpSettingsPage() {
         </a>
       </div>
 
+      <div className="box">
+        <h2 className="title is-6 mb-3">3. Install the Company Enrichment Skill</h2>
+        <p className="mb-3">
+          Looks up a company/fund on LinkedIn (with general web search as a fallback) and
+          proposes a Description and Founded year for you to approve before it writes
+          anything back. Requires a browser-capable AI client (e.g. Claude Code or Cowork).
+        </p>
+        <a className="button is-primary" href="/company-enrichment-skill.zip" download>
+          Download the Company Enrichment Skill
+        </a>
+      </div>
+
       {canGrantNetwork && (
         <div className="box">
-          <h2 className="title is-6 mb-3">3. Install the Network Intelligence Skill</h2>
+          <h2 className="title is-6 mb-3">4. Install the Network Intelligence Skill</h2>
           <p className="mb-3">
             Internal — for loading introductions into the relationship constellation. Requires the{' '}
             <code>network:read</code>/<code>network:write</code> scopes, which you can grant when

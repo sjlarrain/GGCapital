@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { isNetworkUser } from '@/lib/network/allowlist'
 
 export const metadata = {
   title: 'Connecting an AI Agent — GG Capital CRM',
@@ -28,16 +27,6 @@ export default async function McpGuidePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin' && !isNetworkUser(user.id)) {
-    redirect('/not-found')
-  }
 
   return (
     <div className="container" style={{ maxWidth: 760, padding: '2.5rem 1rem 4rem' }}>
@@ -110,27 +99,40 @@ export default async function McpGuidePage() {
         </p>
       </Step>
 
-      <h2 className="title is-5 mb-3 mt-6">Part 2 — Install the Skill (recommended)</h2>
+      <h2 className="title is-5 mb-3 mt-6">Part 2 — Install a Skill (recommended)</h2>
       <p className="mb-4">
-        The connector alone lets an agent read and write CRM records. The <strong>Skill</strong>{' '}
-        is a set of instructions that teaches it to do that well — using the right tags, filling
-        required fields, avoiding duplicates, and sending anything it&apos;s unsure about to the{' '}
-        <strong>Triage</strong> queue for a human to check, instead of guessing.
+        The connector alone lets an agent read and write CRM records. A <strong>Skill</strong>{' '}
+        is a set of instructions that teaches it to do a specific job well.{' '}
+        <Link href="/settings/mcp">Settings → AI Agent (MCP)</Link> has a &quot;Which skill do I
+        need?&quot; table and a download button for each — install whichever ones are relevant to
+        you (you can install more than one):
       </p>
+      <ul className="mb-4" style={{ listStyle: 'disc', paddingLeft: '1.25rem' }}>
+        <li className="mb-1">
+          <strong>CRM Skill</strong> — general add/enrich/de-duplicate work: uses the right tags,
+          fills required fields, and sends anything it&apos;s unsure about to <strong>Triage</strong>{' '}
+          for a human to check instead of guessing.
+        </li>
+        <li className="mb-1">
+          <strong>Company Enrichment Skill</strong> — fills in one company/fund&apos;s Description
+          and Founded year by browsing its LinkedIn page live (you may need to log in yourself
+          when the agent hits a sign-in wall) and proposing the values for your approval before
+          writing anything.
+        </li>
+      </ul>
 
-      <Step n={4} title="Download the Skill">
+      <Step n={4} title="Download the Skill(s) you need">
         <p>
-          From <Link href="/settings/mcp">Settings → AI Agent (MCP)</Link>, click{' '}
-          <strong>Download the CRM Skill</strong>. This saves a small <code>.zip</code> file to
-          your computer — it doesn&apos;t contain any of your data, only instructions for the
-          agent.
+          From <Link href="/settings/mcp">Settings → AI Agent (MCP)</Link>, click the download
+          button for each skill you want. Each saves a small <code>.zip</code> file to your
+          computer — it doesn&apos;t contain any of your data, only instructions for the agent.
         </p>
       </Step>
 
       <Step n={5} title="Upload it to your AI client">
         <p>
           Look for a <strong>Skills</strong> or <strong>Capabilities</strong> section in your AI
-          client&apos;s settings and upload the <code>.zip</code> file you just downloaded.
+          client&apos;s settings and upload the <code>.zip</code> file(s) you just downloaded.
         </p>
         <p className="has-text-grey is-size-7">
           It doesn&apos;t matter where you save it — your browser&apos;s default{' '}
@@ -145,6 +147,7 @@ export default async function McpGuidePage() {
         <li className="mb-1">&quot;Add a contact for Jane Doe at Acme Ventures, jane@acme.vc&quot;</li>
         <li className="mb-1">&quot;Here&apos;s a list of 20 companies from a CSV — add the ones that aren&apos;t already in the CRM&quot;</li>
         <li className="mb-1">&quot;Log a meeting with Acme Ventures from yesterday, notes attached&quot;</li>
+        <li className="mb-1">&quot;Look up Acme Ventures on LinkedIn and fill in its description and founded year&quot; (Company Enrichment Skill)</li>
       </ul>
 
       <h2 className="title is-5 mb-3">Is this safe?</h2>
