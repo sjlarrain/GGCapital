@@ -60,9 +60,39 @@ export async function updateContact(id: string, payload: ContactUpdate) {
     .select()
     .single()
   if (error) throw error
+
+  if (data.company_id) await backfillCompanyTags(supabase, data.company_id, data)
+
   revalidatePath('/contacts')
   revalidatePath(`/contacts/${id}`)
   return data
+}
+
+/**
+ * Mirrors the create-time company→contact tag inheritance in ContactForm, but
+ * in reverse: fills only the company's EMPTY industry/region/stage tags from
+ * the edited contact. Never overwrites tags the company already has.
+ */
+async function backfillCompanyTags(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  contact: { industry_ids: string[] | null; region_ids: string[] | null; stage_ids: string[] | null },
+) {
+  const { data: company } = await supabase
+    .from('companies')
+    .select('industry_ids, region_ids, stage_ids')
+    .eq('id', companyId)
+    .single()
+  if (!company) return
+
+  const patch: Record<string, string[]> = {}
+  if (!company.industry_ids?.length && contact.industry_ids?.length) patch.industry_ids = contact.industry_ids
+  if (!company.region_ids?.length && contact.region_ids?.length) patch.region_ids = contact.region_ids
+  if (!company.stage_ids?.length && contact.stage_ids?.length) patch.stage_ids = contact.stage_ids
+  if (Object.keys(patch).length === 0) return
+
+  await supabase.from('companies').update(patch).eq('id', companyId)
+  revalidatePath(`/companies/${companyId}`)
 }
 
 export async function softDeleteContact(id: string, userId: string) {
