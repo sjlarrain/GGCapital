@@ -253,7 +253,7 @@ src/app/api/oauth/**              # OAuth 2.1 + PKCE (only if a Claude/Cowork co
 ```
 
 ### Tools
-`crm_search`, `crm_get_company|contact|meeting`, `crm_create_*`, `crm_update_*`, `tags_list`, `staging_ingest`, `staging_classify`, `staging_list`, `staging_promote`, `staging_reject`.
+`crm_search`, `crm_get_company|contact|meeting`, `crm_create_*`, `crm_update_*`, `crm_set_meeting_participants`, `tags_list`, `staging_ingest`, `staging_classify`, `staging_list`, `staging_promote`, `staging_reject`.
 
 ### Auth
 - **Cowork/Claude connector** → OAuth 2.1 + PKCE (Supabase as identity source), per‑user.

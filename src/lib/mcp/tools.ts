@@ -257,6 +257,42 @@ export function registerCrmTools(server: McpServer): void {
     }
   )
 
+  // ── meeting participants ─────────────────────────────────────────────────
+  server.registerTool(
+    'crm_set_meeting_participants',
+    {
+      title: 'Set meeting participants',
+      description:
+        'Replace the full set of contacts linked to a meeting. Pass every contact_id that should ' +
+        'remain linked — any contact_id previously linked but omitted here is unlinked. Each contact ' +
+        'must already exist (create it with crm_create_contact first).',
+      inputSchema: { meeting_id: z.string().uuid(), contact_ids: z.array(z.string().uuid()) },
+    },
+    async ({ meeting_id, contact_ids }, extra) => {
+      const g = guard(extra, 'crm:write'); if ('error' in g) return g.error
+      const { data: meeting } = await supabaseAdmin.from('meetings').select('id').eq('id', meeting_id).is('deleted_at', null).maybeSingle()
+      if (!meeting) return toolErr('Meeting not found')
+
+      if (contact_ids.length > 0) {
+        const { data: contacts, error: contactsErr } = await supabaseAdmin
+          .from('contacts').select('id').in('id', contact_ids).is('deleted_at', null)
+        if (contactsErr) return toolErr(contactsErr.message)
+        const found = new Set((contacts ?? []).map((c) => c.id))
+        const missing = contact_ids.filter((id) => !found.has(id))
+        if (missing.length > 0) return toolErr(`Contact(s) not found: ${missing.join(', ')}`)
+      }
+
+      const { error: delErr } = await supabaseAdmin.from('meeting_participants').delete().eq('meeting_id', meeting_id)
+      if (delErr) return toolErr(delErr.message)
+      if (contact_ids.length > 0) {
+        const { error: insErr } = await supabaseAdmin
+          .from('meeting_participants').insert(contact_ids.map((contact_id) => ({ meeting_id, contact_id })))
+        if (insErr) return toolErr(insErr.message)
+      }
+      return toolOk({ meeting_id, participant_count: contact_ids.length })
+    }
+  )
+
   // ── updates ───────────────────────────────────────────────────────────────
   server.registerTool(
     'crm_update_company',

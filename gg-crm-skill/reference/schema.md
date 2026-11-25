@@ -54,6 +54,11 @@ don't set them, but you read them to know what still needs enriching.
 | `notes`      |     | Free text. |
 | `type_id`    |     | uuid from `tags_list.meetingTypes`. |
 
+A meeting has exactly one `company_id` — the one outside company the meeting is with.
+Attendees are linked separately with `crm_set_meeting_participants({ meeting_id, contact_ids })`,
+which replaces the full participant list (omit a contact that was previously linked and it's
+unlinked). See `workflows/log-meeting.md` for the full ingestion sequence.
+
 ## Tag catalogs (`tags_list`)
 
 Returns: `industries`, `regions`, `stages`, `types`, `statuses`, `meetingTypes`, `investmentFocus` — each an

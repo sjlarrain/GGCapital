@@ -1,9 +1,10 @@
 /**
  * Transactional promotion of a staged event into the official CRM tables.
  *
- * The actual multi-table write (company + contact created together, or not at
- * all) lives in the `promote_staging_event` SQL function (012_staging.sql) so
- * it runs inside a single Postgres transaction — any failure rolls back every
+ * The actual multi-table write (company + contact + meeting, whichever apply,
+ * created together or not at all) lives in the `promote_staging_event` SQL
+ * function (012_staging.sql, meeting branch added in 025_staging_meeting_promote.sql)
+ * so it runs inside a single Postgres transaction — any failure rolls back every
  * write. This module is the thin server-side wrapper: it invokes the RPC and
  * normalises the outcome / errors for callers (REST route + Triage action).
  */
@@ -11,7 +12,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 export interface PromotedRef {
-  table: 'companies' | 'contacts'
+  table: 'companies' | 'contacts' | 'meetings'
   id: string
 }
 
@@ -31,7 +32,7 @@ export class StagingNotReadyError extends Error {
 
 /** Thrown when there is nothing valid to promote (maps to HTTP 409). */
 export class StagingNothingToPromoteError extends Error {
-  constructor(message = 'Event has no company or contact to promote') {
+  constructor(message = 'Event has no company, contact, or meeting to promote') {
     super(message)
     this.name = 'StagingNothingToPromoteError'
   }

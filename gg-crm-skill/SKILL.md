@@ -36,7 +36,7 @@ you are not sure, to stage the record for human review rather than guess.
 
 Reads: `crm_search`, `crm_get_company`, `crm_get_contact`, `crm_get_meeting`, `tags_list`.
 Writes: `crm_create_company`, `crm_create_contact`, `crm_create_meeting`,
-`crm_update_company`, `crm_update_contact`.
+`crm_set_meeting_participants`, `crm_update_company`, `crm_update_contact`.
 Staging/triage: `staging_ingest`, `staging_classify`, `staging_list`, `staging_reject`.
 
 ## Where to go next
@@ -46,4 +46,6 @@ Staging/triage: `staging_ingest`, `staging_classify`, `staging_list`, `staging_r
   `reference/verification-rules.md`
 - Bulk-populating from a list/CSV → `workflows/bulk-populate.md`
 - Enriching incomplete (`stub`/`partial`) records → `workflows/enrich-stubs.md`
+- Logging a meeting from notes/a transcript (participants, new companies, missing info) →
+  `workflows/log-meeting.md`
 - CSV column template → `templates/import.csv`
