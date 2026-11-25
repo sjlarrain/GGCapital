@@ -16,6 +16,7 @@ const navItems = [
   { href: '/meetings', label: 'Meetings', icon: '📅' },
   { href: '/tags', label: 'Tags', icon: '🏷' },
   { href: '/triage', label: 'Triage', icon: '🗂' },
+  { href: '/mcp-activity', label: 'MCP Activity', icon: '🔌' },
   { href: '/network', label: 'Network', icon: '🕸' },
   { href: '/trash', label: 'Trash', icon: '🗑' },
 ]

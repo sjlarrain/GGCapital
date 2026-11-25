@@ -32,6 +32,7 @@ import { StagingIngestSchema, StagingListQuerySchema } from '@/lib/schemas/stagi
 import { classifyEvent } from '@/lib/staging/rules'
 import { computeDedupe } from '@/lib/staging/dedupe'
 import { logStagingTransition } from '@/lib/staging/log'
+import { logMcpActivity } from '@/lib/mcp/activity'
 
 type Extra = RequestHandlerExtra<ServerRequest, ServerNotification>
 
@@ -227,6 +228,7 @@ export function registerCrmTools(server: McpServer): void {
       if (!parsed.success) return toolErr(JSON.stringify(parsed.error.flatten()))
       const { data, error } = await supabaseAdmin.from('companies').insert({ ...parsed.data, created_by: g.ctx.userId, updated_by: g.ctx.userId }).select().single()
       if (error) return toolErr(error.message)
+      await logMcpActivity({ tool: 'crm_create_company', ctx: g.ctx, entityTable: 'companies', entityId: data.id, summary: `Created company "${data.name}"` })
       return toolOk(data)
     }
   )
@@ -240,6 +242,7 @@ export function registerCrmTools(server: McpServer): void {
       if (!parsed.success) return toolErr(JSON.stringify(parsed.error.flatten()))
       const { data, error } = await supabaseAdmin.from('contacts').insert({ ...parsed.data, created_by: g.ctx.userId, updated_by: g.ctx.userId }).select().single()
       if (error) return toolErr(error.message)
+      await logMcpActivity({ tool: 'crm_create_contact', ctx: g.ctx, entityTable: 'contacts', entityId: data.id, summary: `Created contact "${data.name}"${data.email ? ` <${data.email}>` : ''}` })
       return toolOk(data)
     }
   )
@@ -253,6 +256,7 @@ export function registerCrmTools(server: McpServer): void {
       if (!parsed.success) return toolErr(JSON.stringify(parsed.error.flatten()))
       const { data, error } = await supabaseAdmin.from('meetings').insert({ ...parsed.data, created_by: g.ctx.userId, updated_by: g.ctx.userId }).select().single()
       if (error) return toolErr(error.message)
+      await logMcpActivity({ tool: 'crm_create_meeting', ctx: g.ctx, entityTable: 'meetings', entityId: data.id, summary: `Created meeting "${data.title}" (${data.date})` })
       return toolOk(data)
     }
   )
@@ -289,6 +293,7 @@ export function registerCrmTools(server: McpServer): void {
           .from('meeting_participants').insert(contact_ids.map((contact_id) => ({ meeting_id, contact_id })))
         if (insErr) return toolErr(insErr.message)
       }
+      await logMcpActivity({ tool: 'crm_set_meeting_participants', ctx: g.ctx, entityTable: 'meetings', entityId: meeting_id, summary: `Set ${contact_ids.length} participant(s) on meeting`, detail: { contact_ids } })
       return toolOk({ meeting_id, participant_count: contact_ids.length })
     }
   )
@@ -303,6 +308,7 @@ export function registerCrmTools(server: McpServer): void {
       if (!parsed.success) return toolErr(JSON.stringify(parsed.error.flatten()))
       const { data, error } = await supabaseAdmin.from('companies').update({ ...parsed.data, updated_by: g.ctx.userId }).eq('id', id).is('deleted_at', null).select().single()
       if (error || !data) return toolErr('Not found')
+      await logMcpActivity({ tool: 'crm_update_company', ctx: g.ctx, entityTable: 'companies', entityId: data.id, summary: `Updated company "${data.name}"`, detail: { patch: Object.keys(parsed.data) } })
       return toolOk(data)
     }
   )
@@ -316,6 +322,7 @@ export function registerCrmTools(server: McpServer): void {
       if (!parsed.success) return toolErr(JSON.stringify(parsed.error.flatten()))
       const { data, error } = await supabaseAdmin.from('contacts').update({ ...parsed.data, updated_by: g.ctx.userId }).eq('id', id).is('deleted_at', null).select().single()
       if (error || !data) return toolErr('Not found')
+      await logMcpActivity({ tool: 'crm_update_contact', ctx: g.ctx, entityTable: 'contacts', entityId: data.id, summary: `Updated contact "${data.name}"`, detail: { patch: Object.keys(parsed.data) } })
       return toolOk(data)
     }
   )
@@ -343,6 +350,7 @@ export function registerCrmTools(server: McpServer): void {
       if (error) return toolErr(error.message)
 
       await logStagingTransition(supabaseAdmin, { eventId: data.id, from: null, to: 'pending', action: 'ingest', actor: g.ctx.userId, detail: { source: body.source, source_ref: body.source_ref ?? null } })
+      await logMcpActivity({ tool: 'staging_ingest', ctx: g.ctx, entityTable: 'staging_events', entityId: data.id, summary: `Staged ${body.event_class ?? 'event'} from "${body.source}"${body.source_ref ? ` (${body.source_ref})` : ''}` })
       return toolOk({ id: data.id, status: data.status })
     }
   )
@@ -572,6 +580,7 @@ export function registerNetworkTools(server: McpServer): void {
         return toolErr(`Failed to link parties (${partiesErr.message}); intro rolled back.`)
       }
 
+      await logMcpActivity({ tool: 'network_create_intro', ctx: g.ctx, entityTable: 'intros', entityId: intro.id, summary: `Created ${args.direction} intro with ${partyRows.length} part${partyRows.length === 1 ? 'y' : 'ies'}${nameOnlyParties ? ` (${nameOnlyParties} name-only)` : ''}`, detail: { source, source_ref } })
       return toolOk({ id: intro.id, direction: args.direction, parties: partyRows.length, name_only_parties: nameOnlyParties, facilitator_entity_id: facilitatorEntityId, source, source_ref })
     }
   )
@@ -666,6 +675,7 @@ export function registerNetworkTools(server: McpServer): void {
       const { data: linked, error: linkErr } = await supabaseAdmin
         .from('network_entities').update({ company_id: targetCompanyId }).eq('id', entity_id).select('id, name, company_id').single()
       if (linkErr || !linked) return toolErr(linkErr?.message ?? 'Failed to link node to company')
+      await logMcpActivity({ tool: 'network_promote_entity', ctx: g.ctx, entityTable: 'network_entities', entityId: linked.id, summary: `Promoted node "${linked.name}" to company`, detail: { company_id: linked.company_id } })
       return toolOk({ entity_id: linked.id, name: linked.name, company_id: linked.company_id, promoted: true })
     }
   )
@@ -695,6 +705,7 @@ export function registerNetworkTools(server: McpServer): void {
         // created_by is preserved on update; the updated_at trigger refreshes the timestamp.
         const { data, error } = await supabaseAdmin.from('relationship_sources').update(patch).eq('company_id', company_id).select('*').single()
         if (error) return toolErr(error.message)
+        await logMcpActivity({ tool: 'network_upsert_relationship_source', ctx: g.ctx, entityTable: 'relationship_sources', entityId: company_id, summary: `Updated relationship source for company ${company_id}` })
         return toolOk(data)
       }
       const { data, error } = await supabaseAdmin
@@ -703,6 +714,7 @@ export function registerNetworkTools(server: McpServer): void {
         .select('*')
         .single()
       if (error) return toolErr(error.message)
+      await logMcpActivity({ tool: 'network_upsert_relationship_source', ctx: g.ctx, entityTable: 'relationship_sources', entityId: company_id, summary: `Recorded relationship source for company ${company_id}` })
       return toolOk(data)
     }
   )
